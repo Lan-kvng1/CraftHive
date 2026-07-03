@@ -89,9 +89,9 @@ Contributions, issues, and feature requests are welcome! Feel free to check the 
 
 ## 👨‍💻 Author
 
-**Lan-kvng1**
+**Franklin Kumi (Lan-kvng1)**
 - GitHub: [@Lan-kvng1](https://github.com/Lan-kvng1)
-- LinkedIn: [Your Profile Link Here](#)
+- LinkedIn: [Franklin Kumi](https://www.linkedin.com/in/franklin-kumi-816b57346)
 
 ---
 
