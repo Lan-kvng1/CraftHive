@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:claude.ai)",
+      "Bash(curl -s -X POST https://nbjretwmzpyclsgmqaqe.supabase.co/auth/v1/token?grant_type=password -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ianJldHdtenB5Y2xzZ21xYXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDU4ODYsImV4cCI6MjA5NTcyMTg4Nn0.NsLtaJAcwJMg8Y3UfC2ZFwtucNrAbbrqk_xlCtAef6c' -H 'Content-Type: application/json' -d '{\"email\":\"franklin.kumi.stu@uenr.edu.gh\",\"password\":\"Alu_tHE&Guest.3601@\"}')",
+      "Bash(curl -s -X POST https://nbjretwmzpyclsgmqaqe.supabase.co/storage/v1/object/list/chat-media -H 'apikey: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ianJldHdtenB5Y2xzZ21xYXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDU4ODYsImV4cCI6MjA5NTcyMTg4Nn0.NsLtaJAcwJMg8Y3UfC2ZFwtucNrAbbrqk_xlCtAef6c' -H 'Authorization: Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ianJldHdtenB5Y2xzZ21xYXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDU4ODYsImV4cCI6MjA5NTcyMTg4Nn0.NsLtaJAcwJMg8Y3UfC2ZFwtucNrAbbrqk_xlCtAef6c' -H 'Content-Type: application/json' -d '{\"prefix\":\"chat/d3cd4a11-9a51-4897-b6e7-ff4bc5b915d0/\",\"limit\":20}')",
+      "Bash(python -c \"import sys,json; data=json.load\\(sys.stdin\\); [print\\(b['name'], '-', b.get\\('public', False\\)\\) for b in data] if isinstance\\(data, list\\) else print\\(data\\)\")"
+    ]
+  }
+}

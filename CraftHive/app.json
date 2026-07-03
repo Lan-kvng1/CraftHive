@@ -1,0 +1,116 @@
+{
+  "expo": {
+    "name": "CraftHive",
+    "slug": "crafthive",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "icon": "./assets/images/logo.png",
+    "userInterfaceStyle": "automatic",
+    "scheme": "crafthive",
+    "splash": {
+      "image": "./assets/images/logo.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#0A2463"
+    },
+    "extra": {
+      "eas": {
+        "projectId": "5dedeb33-a331-45e5-a8ba-16c35a1cf4ed"
+      }
+    },
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "com.crafthive.app",
+      "config": {
+        "googleMapsApiKey": "AIzaSyBRsQqc90RUmMnCNlP0EcLEg5kOflGfIsk"
+      },
+      "infoPlist": {
+        "NSMicrophoneUsageDescription": "CraftHive uses the microphone for voice messages in chat.",
+        "NSLocationWhenInUseUsageDescription": "CraftHive uses your location to find nearby artisans and track artisan arrival.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "CraftHive uses your location in the background when you are sharing your live location as an artisan.",
+        "NSLocationAlwaysUsageDescription": "CraftHive uses your location to track artisan arrival.",
+        "NSCameraUsageDescription": "CraftHive needs camera access to take photos for your profile and documents.",
+        "NSPhotoLibraryUsageDescription": "CraftHive needs photo library access to upload your ID and certification documents.",
+        "NSAppTransportSecurity": {
+          "NSAllowsArbitraryLoads": false,
+          "NSExceptionDomains": {
+            "supabase.co": {
+              "NSIncludesSubdomains": true,
+              "NSExceptionRequiresForwardSecrecy": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.0"
+            },
+            "nbjretwmzpyclsgmqaqe.supabase.co": {
+              "NSIncludesSubdomains": true,
+              "NSExceptionRequiresForwardSecrecy": false,
+              "NSExceptionMinimumTLSVersion": "TLSv1.0"
+            }
+          }
+        }
+      }
+    },
+    "android": {
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/images/logo.png",
+        "backgroundColor": "#0A2463"
+      },
+      "package": "com.crafthive.app",
+      "config": {
+        "googleMaps": {
+          "apiKey": "AIzaSyBRsQqc90RUmMnCNlP0EcLEg5kOflGfIsk"
+        }
+      },
+      "usesCleartextTraffic": true,
+      "permissions": [
+        "ACCESS_FINE_LOCATION",
+        "ACCESS_COARSE_LOCATION",
+        "ACCESS_BACKGROUND_LOCATION",
+        "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
+        "RECORD_AUDIO",
+        "CAMERA",
+        "READ_EXTERNAL_STORAGE",
+        "WRITE_EXTERNAL_STORAGE",
+        "RECEIVE_BOOT_COMPLETED",
+        "VIBRATE",
+        "POST_NOTIFICATIONS"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/images/logo.png",
+      "bundler": "metro"
+    },
+    "plugins": [
+      "expo-router",
+      [
+        "expo-location",
+        {
+          "locationAlwaysAndWhenInUsePermission": "CraftHive uses your location to find nearby artisans and share your live location when you are on a job.",
+          "locationAlwaysPermission": "CraftHive uses your location in the background to share live arrival tracking with customers.",
+          "locationWhenInUsePermission": "CraftHive uses your location to find nearby artisans and show your arrival time.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ],
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "CraftHive needs access to your photos to upload ID and certification documents.",
+          "cameraPermission": "CraftHive needs camera access to take photos for your profile."
+        }
+      ],
+      [
+        "expo-notifications",
+        {
+          "icon": "./assets/images/logo.png",
+          "color": "#0A2463",
+          "sounds": [],
+          "androidMode": "default",
+          "androidCollapsedTitle": "CraftHive"
+        }
+      ],
+      "expo-audio"
+    ],
+    "experiments": {
+      "typedRoutes": true
+    }
+  }
+}

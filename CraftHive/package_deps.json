@@ -1,0 +1,16 @@
+{
+  "note": "Run the commands below in your project root. These are the exact dependencies CraftHive needs.",
+  "commands": [
+    "npx expo install expo-speech",
+    "npx expo install expo-status-bar",
+    "npx expo install expo-router",
+    "npx expo install react-native-safe-area-context",
+    "npx expo install react-native-screens",
+    "npx expo install react-native-gesture-handler",
+    "npx expo install react-native-reanimated",
+    "npx expo install react-native-svg",
+    "npx expo install @react-native-async-storage/async-storage",
+    "npm install @supabase/supabase-js --legacy-peer-deps"
+  ],
+  "one_liner": "npx expo install expo-speech expo-status-bar expo-router react-native-safe-area-context react-native-screens react-native-gesture-handler react-native-reanimated react-native-svg @react-native-async-storage/async-storage && npm install @supabase/supabase-js --legacy-peer-deps"
+}
