@@ -48,4 +48,4 @@ npm run dev
 ```
 
 ---
-*Developed as a Final Year Computer Science / Software Engineering Project.*
+*Developed as a Final Year Information Technology Project.*
