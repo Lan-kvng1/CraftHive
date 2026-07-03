@@ -1,4 +1,4 @@
-# CraftHive 🐝
+# CraftHive 
 
 **CraftHive: A Mobile-Based Artisan Service Marketplace**
 
