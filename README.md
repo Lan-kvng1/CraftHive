@@ -14,7 +14,7 @@ CraftHive is a comprehensive, open-source digital marketplace designed to connec
 
 Built as a Final Year Information Technology Project, it digitizes the informal skilled labor sector by introducing escrow payments, KYC verification, and real-time tracking.
 
-**[🚀 View Live Admin Dashboard](https://crafthive-admin.vercel.app/)**
+**[🚀 View Live Admin Dashboard](https://crafthive-admin.vercel.app/)** | **[📱 Download Android APK](https://github.com/Lan-kvng1/CraftHive/releases/latest)**
 
 ---
 
