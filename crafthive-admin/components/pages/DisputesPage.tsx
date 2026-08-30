@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabaseAdmin as supabase } from '@/lib/supabase'
 import { Avatar, Badge, PageHeader, EmptyState } from '../ui'
+import { Ico } from '../icons'
 import { toast } from '../Toaster'
 
 interface Dispute {
@@ -29,6 +30,34 @@ export default function DisputesPage() {
   const [resolving, setResolving] = useState(false)
 
   useEffect(() => { fetchDisputes() }, [])
+
+  const exportToCSV = () => {
+    if (disputes.length === 0) { toast('No disputes to export', 'error'); return }
+
+    const headers = ['Case ID', 'Status', 'Raised By', 'Customer', 'Artisan', 'Booking Ticket', 'Reason', 'Description', 'Date']
+    const rows = disputes.map(d => [
+      d.id.slice(0, 8).toUpperCase(),
+      d.status,
+      `"${((d as any).raised_by_profile?.full_name || '').replace(/"/g, '""')}"`,
+      `"${((d.booking as any)?.customer?.full_name || '').replace(/"/g, '""')}"`,
+      `"${((d.booking as any)?.artisan?.full_name || '').replace(/"/g, '""')}"`,
+      (d.booking as any)?.ticket_number || '—',
+      `"${(d.reason || '').replace(/"/g, '""')}"`,
+      `"${(d.description || '').replace(/"/g, '""')}"`,
+      `"${new Date(d.created_at).toLocaleDateString()}"`
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_disputes_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${disputes.length} dispute(s) exported`, 'success')
+  }
 
   const fetchDisputes = async () => {
     setLoading(true)
@@ -139,12 +168,27 @@ export default function DisputesPage() {
       <PageHeader
         title="Disputes Resolution"
         subtitle={`${disputes.filter(d => d.status === 'open').length} open disputes`}
+        actions={
+          <button
+            onClick={exportToCSV}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '7px 16px',
+              background: '#fff', border: '1px solid #E2E8F0',
+              borderRadius: 8, cursor: 'pointer', fontSize: 13,
+              color: '#6B7494', fontWeight: 600,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}
+          >
+            {Ico.download} Export CSV
+          </button>
+        }
       />
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7494' }}>Loading disputes...</div>
       ) : disputes.length === 0 ? (
-        <EmptyState icon="⚖️" title="No disputes" message="All disputes will appear here when raised by customers or artisans." />
+        <EmptyState icon={Ico.scale} title="No disputes" message="All disputes will appear here when raised by customers or artisans." />
       ) : (
         <div style={{ display: 'grid', gridTemplateColumns: active ? '1fr 1fr' : '1fr', gap: 16 }}>
           {/* Dispute list */}

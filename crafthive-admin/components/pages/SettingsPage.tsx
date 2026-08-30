@@ -1,6 +1,6 @@
 'use client'
 import { useState, useEffect } from 'react'
-import { supabase, getCurrentUser } from '@/lib/supabase'
+import { supabase, getCurrentUser, getImageUrl } from '@/lib/supabase'
 import { Ico } from '../icons'
 import { toast } from '../Toaster'
 
@@ -10,6 +10,7 @@ interface AdminUser {
   role: string
   created_at: string
   phone?: string | null
+  avatar_url?: string | null
 }
 
 interface CurrentAdmin {
@@ -18,6 +19,7 @@ interface CurrentAdmin {
   email: string
   role: string
   phone?: string | null
+  avatar_url?: string | null
 }
 
 const SECURITY = [
@@ -45,35 +47,34 @@ const ROLE_LABEL: Record<string, string> = {
 
 const inp: React.CSSProperties = {
   width: '100%',
-  background: '#F5F7FF',
-  border: '1px solid #E8EDF8',
-  borderRadius: 8,
-  paddingTop: 8,
-  paddingBottom: 8,
-  paddingLeft: 12,
-  paddingRight: 12,
+  background: '#fff',
+  border: '1px solid #E2E8F0',
+  borderRadius: 10,
+  padding: '12px 16px',
   fontSize: 14,
-  color: '#1B2B6B',
+  color: '#0F172A',
   outline: 'none',
-  marginTop: 6,
+  marginTop: 8,
   fontFamily: 'inherit',
+  boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+  transition: 'border-color 0.2s ease, box-shadow 0.2s ease',
 }
 
 const lbl: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#6B7494',
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#475569',
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.04em',
   display: 'block',
 }
 
 const fieldLabel: React.CSSProperties = {
-  fontSize: 11,
-  fontWeight: 700,
-  color: '#6B7494',
+  fontSize: 12,
+  fontWeight: 600,
+  color: '#475569',
   textTransform: 'uppercase',
-  letterSpacing: '0.05em',
+  letterSpacing: '0.04em',
   display: 'block',
 }
 
@@ -259,7 +260,7 @@ export default function SettingsPage({ isGuest = false }: { isGuest?: boolean })
       if (user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('id, full_name, role, phone')
+          .select('id, full_name, role, phone, avatar_url')
           .eq('id', user.id)
           .single()
 
@@ -270,13 +271,14 @@ export default function SettingsPage({ isGuest = false }: { isGuest?: boolean })
             email: user.email || '',
             role: profile.role,
             phone: profile.phone,
+            avatar_url: profile.avatar_url,
           })
         }
       }
 
       const { data } = await supabase
         .from('profiles')
-        .select('id, full_name, role, created_at, phone')
+        .select('id, full_name, role, created_at, phone, avatar_url')
         .in('role', ['admin', 'superadmin', 'support', 'finance', 'moderator'])
         .order('created_at', { ascending: true })
 
@@ -372,14 +374,12 @@ export default function SettingsPage({ isGuest = false }: { isGuest?: boolean })
 
   const cardStyle: React.CSSProperties = {
     background: '#fff',
-    border: '1px solid #E8EDF8',
-    borderRadius: 12,
-    paddingTop: 20,
-    paddingBottom: 20,
-    paddingLeft: 20,
-    paddingRight: 20,
+    border: '1px solid #E2E8F0',
+    borderRadius: 16,
+    padding: 32,
     position: 'relative',
     overflow: 'hidden',
+    boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
   }
 
   const thStyle: React.CSSProperties = {
@@ -422,20 +422,30 @@ export default function SettingsPage({ isGuest = false }: { isGuest?: boolean })
           <>
             <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
               <div style={{
-                width: 56,
-                height: 56,
-                borderRadius: 56,
-                background: '#1B2B6B',
+                width: 64,
+                height: 64,
+                borderRadius: 64,
+                background: 'linear-gradient(135deg, #1E293B 0%, #0F172A 100%)',
                 color: '#fff',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
-                fontSize: 18,
+                fontSize: 20,
                 fontWeight: 700,
-                fontFamily: 'monospace',
+                fontFamily: 'Inter, sans-serif',
                 flexShrink: 0,
+                boxShadow: '0 8px 16px rgba(15, 23, 42, 0.2)',
+                overflow: 'hidden',
               }}>
-                {getInitials(currentAdmin.full_name)}
+                {currentAdmin.avatar_url ? (
+                  <img
+                    src={getImageUrl(currentAdmin.avatar_url, 'avatars')}
+                    alt={currentAdmin.full_name}
+                    style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                  />
+                ) : (
+                  getInitials(currentAdmin.full_name)
+                )}
               </div>
               <div>
                 <p style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 16 }}>
@@ -669,8 +679,17 @@ export default function SettingsPage({ isGuest = false }: { isGuest?: boolean })
                           fontWeight: 600,
                           fontFamily: 'monospace',
                           flexShrink: 0,
+                          overflow: 'hidden',
                         }}>
-                          {getInitials(a.full_name || '')}
+                          {a.avatar_url ? (
+                            <img
+                              src={getImageUrl(a.avatar_url, 'avatars')}
+                              alt={a.full_name || ''}
+                              style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                            />
+                          ) : (
+                            getInitials(a.full_name || '')
+                          )}
                         </div>
                         <div>
                           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>

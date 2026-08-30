@@ -165,6 +165,41 @@ export default function ArtisansPage() {
     }
   }
 
+  const exportToCSV = () => {
+    if (artisans.length === 0) {
+      toast('No artisans to export', 'error')
+      return
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Trade Category', 'Location', 'Rating', 'Jobs Completed', 'Total Earnings (GHC)', 'Status', 'Joined Date']
+    
+    const rows = artisans.map(a => [
+      `"${(a.full_name || '').replace(/"/g, '""')}"`,
+      `"${(a.email || '').replace(/"/g, '""')}"`,
+      `"${(a.phone || '').replace(/"/g, '""')}"`,
+      `"${(a.trade_category || '').replace(/"/g, '""')}"`,
+      `"${(a.location || '').replace(/"/g, '""')}"`,
+      a.rating,
+      a.job_count,
+      a.total_earnings,
+      a.status,
+      `"${new Date(a.created_at).toLocaleDateString()}"`
+    ])
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_artisans_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast('Artisans exported successfully', 'success')
+  }
+
   useEffect(() => { fetchArtisans() }, [])
 
   const updateStatus = async (id: string, newStatus: string, name: string, user_id: string) => {
@@ -287,7 +322,7 @@ export default function ArtisansPage() {
               />
             </div>
             <button
-              onClick={() => toast('Exporting artisans to CSV…', 'info')}
+              onClick={exportToCSV}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -337,12 +372,18 @@ export default function ArtisansPage() {
         </div>
       ) : filtered.length === 0 ? (
         <EmptyState
-          icon="🔨"
+          icon={Ico.tool}
           title="No artisans yet"
           message="Artisans will appear here once they register through the mobile app."
         />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+        }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr style={{ background: '#F5F7FF', borderBottom: '1px solid #E8EDF8' }}>
@@ -369,9 +410,12 @@ export default function ArtisansPage() {
                 <tr
                   key={a.id}
                   style={{
-                    borderBottom: '1px solid #E8EDF8',
-                    background: i % 2 === 0 ? '#fff' : '#FAFBFF',
+                    borderBottom: i === filtered.length - 1 ? 'none' : '1px solid #E8EDF8',
+                    background: '#fff',
+                    transition: 'background 0.2s ease',
                   }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8FAFC'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#fff'}
                 >
                   {/* Artisan name + avatar */}
                   <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 }}>

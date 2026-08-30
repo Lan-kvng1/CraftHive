@@ -97,6 +97,37 @@ export default function ReviewsPage() {
     }
   }
 
+  const exportToCSV = () => {
+    if (reviews.length === 0) { toast('No reviews to export', 'error'); return }
+
+    const source = filter === 'all' ? reviews
+      : filter === 'positive' ? reviews.filter(r => r.rating >= 4)
+      : reviews.filter(r => r.rating <= 2)
+
+    const headers = ['Review ID', 'Rating', 'Customer', 'Artisan', 'Booking Ticket', 'Comment', 'Status', 'Date']
+    const rows = source.map(r => [
+      r.id.slice(0, 8).toUpperCase(),
+      r.rating,
+      `"${((r.customer as any)?.full_name || '').replace(/"/g, '""')}"`,
+      `"${((r.artisan as any)?.full_name || '').replace(/"/g, '""')}"`,
+      r.booking_id?.slice(0, 8).toUpperCase() || '—',
+      `"${(r.comment || '').replace(/"/g, '""')}"`,
+      r.status || 'approved',
+      `"${new Date(r.created_at).toLocaleDateString()}"`
+    ])
+
+    const csv = [headers.join(','), ...rows.map(row => row.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_reviews_${filter}_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${source.length} review(s) exported`, 'success')
+  }
+
   const filtered = filter === 'all' ? reviews
     : filter === 'positive' ? reviews.filter(r => r.rating >= 4)
     : reviews.filter(r => r.rating <= 2)
@@ -126,17 +157,32 @@ export default function ReviewsPage() {
         title="Review Moderation"
         subtitle={`${reviews.length} total reviews`}
         actions={
-          <div style={{ display: 'flex', gap: 4, background: '#fff', border: '1px solid #E8EDF8', borderRadius: 10, padding: 4 }}>
-            {(['all', 'positive', 'negative'] as const).map(f => (
-              <button key={f} onClick={() => setFilter(f)} style={{
-                padding: '6px 14px', borderRadius: 7, border: 'none',
-                background: filter === f ? '#1B2B6B' : 'transparent',
-                color: filter === f ? '#fff' : '#6B7494',
-                cursor: 'pointer', fontSize: 13, textTransform: 'capitalize',
-              }}>
-                {f} ({f === 'all' ? reviews.length : f === 'positive' ? reviews.filter(r => r.rating >= 4).length : reviews.filter(r => r.rating <= 2).length})
-              </button>
-            ))}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div style={{ display: 'flex', gap: 4, background: '#fff', border: '1px solid #E8EDF8', borderRadius: 10, padding: 4 }}>
+              {(['all', 'positive', 'negative'] as const).map(f => (
+                <button key={f} onClick={() => setFilter(f)} style={{
+                  padding: '6px 14px', borderRadius: 7, border: 'none',
+                  background: filter === f ? '#1B2B6B' : 'transparent',
+                  color: filter === f ? '#fff' : '#6B7494',
+                  cursor: 'pointer', fontSize: 13, textTransform: 'capitalize',
+                }}>
+                  {f} ({f === 'all' ? reviews.length : f === 'positive' ? reviews.filter(r => r.rating >= 4).length : reviews.filter(r => r.rating <= 2).length})
+                </button>
+              ))}
+            </div>
+            <button
+              onClick={exportToCSV}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 16px',
+                background: '#fff', border: '1px solid #E2E8F0',
+                borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                color: '#6B7494', fontWeight: 600,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              ⬇ Export CSV
+            </button>
           </div>
         }
       />

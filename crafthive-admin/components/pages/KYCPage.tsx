@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabaseAdmin as supabase, getImageUrl } from '@/lib/supabase'
 import { PageHeader, EmptyState, Modal } from '../ui'
+import { Ico } from '../icons'
 import { toast } from '../Toaster'
 
 interface KYCEntry {
@@ -33,6 +34,75 @@ function timeAgo(date: string) {
   return `${Math.floor(diff / 86400)}d ago`
 }
 
+function DocumentThumbnail({ url, label, onClick }: { url: string; label: string; onClick: () => void }) {
+  const [hover, setHover] = useState(false)
+  const [error, setError] = useState(false)
+
+  return (
+    <div
+      onClick={onClick}
+      onMouseEnter={() => setHover(true)}
+      onMouseLeave={() => setHover(false)}
+      style={{
+        position: 'relative',
+        cursor: 'pointer',
+        borderRadius: 10,
+        overflow: 'hidden',
+        border: `2px solid ${hover ? '#1B2B6B' : '#E2E8F0'}`,
+        transition: 'all 0.2s',
+        width: 80,
+        height: 80,
+        background: '#F8FAFC',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      {!error ? (
+        <img
+          src={url}
+          alt={label}
+          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+          onError={() => setError(true)}
+        />
+      ) : (
+        <span style={{ fontSize: 28, opacity: 0.5 }}>📄</span>
+      )}
+
+      {hover && !error && (
+        <div style={{
+          position: 'absolute',
+          inset: 0,
+          background: 'rgba(27,43,107,0.4)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontSize: 20,
+        }}>
+          🔍
+        </div>
+      )}
+
+      <div style={{
+        position: 'absolute',
+        bottom: 4,
+        right: 4,
+        background: 'rgba(15, 23, 42, 0.75)',
+        backdropFilter: 'blur(4px)',
+        borderRadius: 6,
+        padding: '2px 6px',
+        fontSize: 10,
+        fontWeight: 600,
+        color: '#fff',
+        letterSpacing: '0.05em',
+      }}>
+        {label}
+      </div>
+    </div>
+  )
+}
+
 export default function KYCPage() {
   const [queue, setQueue] = useState<KYCEntry[]>([])
   const [loading, setLoading] = useState(true)
@@ -46,51 +116,44 @@ export default function KYCPage() {
 
   const fetchQueue = async () => {
     setLoading(true)
+
+    // 1. Fetch artisan applications for the current filter
+    const { data: artisans, error: aErr } = await supabase
+      .from('artisan_profiles')
+      .select('id, user_id, trade_category, bio, location, status, created_at, portfolio_images')
+      .eq('status', filter)
+      .order('created_at', { ascending: true })
+
+    if (aErr || !artisans || artisans.length === 0) {
+      setQueue([])
+      setLoading(false)
+      return
+    }
+
+    const userIds = artisans.map((a: any) => a.user_id)
+
+    // 2. Fetch corresponding profiles and documents manually (avoids join failures)
     const [profilesRes, docsRes] = await Promise.all([
-      supabase
-        .from('artisan_profiles')
-        .select(`
-          id, user_id, trade_category, bio, location,
-          status, created_at, portfolio_images,
-          profiles ( full_name, phone, avatar_url )
-        `)
-        .eq('status', filter)
-        .order('created_at', { ascending: true }),
-      supabase
-        .from('portfolio_documents')
-        .select('artisan_id, name, url')
+      supabase.from('profiles').select('id, full_name, phone, avatar_url').in('id', userIds),
+      supabase.from('portfolio_documents').select('artisan_id, name, url').in('artisan_id', userIds)
     ])
 
-    const { data, error } = profilesRes
-    const docs = docsRes.data || []
+    const profMap: Record<string, any> = {}
+    profilesRes.data?.forEach((p: any) => { profMap[p.id] = p })
 
     const docsMap: Record<string, { name: string; url: string }[]> = {}
-    docs.forEach((doc: any) => {
-      if (!docsMap[doc.artisan_id]) docsMap[doc.artisan_id] = []
-      docsMap[doc.artisan_id].push({ name: doc.name, url: doc.url })
+    docsRes.data?.forEach((d: any) => {
+      if (!docsMap[d.artisan_id]) docsMap[d.artisan_id] = []
+      docsMap[d.artisan_id].push({ name: d.name, url: d.url })
     })
 
-    if (error) {
-      console.warn('KYC fetch error:', error.message)
-      // Fallback without join
-      const { data: plain } = await supabase
-        .from('artisan_profiles')
-        .select('id, user_id, trade_category, bio, location, status, created_at, portfolio_images')
-        .eq('status', filter)
-        .order('created_at', { ascending: true })
-      if (plain) {
-        setQueue(plain.map((a: any) => ({
-          ...a,
-          profiles: null,
-          documents: docsMap[a.user_id] || []
-        })) as any)
-      }
-    } else if (data) {
-      setQueue(data.map((entry: any) => ({
-        ...entry,
-        documents: docsMap[entry.user_id] || []
-      })) as any)
-    }
+    // 3. Assemble and set the final queue
+    setQueue(artisans.map((a: any) => ({
+      ...a,
+      profiles: profMap[a.user_id] || null,
+      documents: docsMap[a.user_id] || []
+    })) as any)
+
     setLoading(false)
   }
 
@@ -151,49 +214,65 @@ export default function KYCPage() {
   return (
     <div style={{ paddingTop: 24, paddingBottom: 24, paddingLeft: 24, paddingRight: 24 }}>
 
-      {/* ── Document viewer modal ── */}
+      {/* ── High-Resolution Ghana Card & Document Inspector ── */}
       {viewingDoc && (
         <div
           onClick={() => setViewingDoc(null)}
           style={{
             position: 'fixed',
             inset: 0,
-            background: 'rgba(0,0,0,0.85)',
+            background: 'rgba(10,22,40,0.9)',
+            backdropFilter: 'blur(16px)',
             zIndex: 9999,
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
+            padding: 24,
           }}
         >
-          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', maxWidth: '90vw', maxHeight: '90vh' }}>
-            <img
-              src={viewingDoc}
-              alt="Document"
-              style={{ maxWidth: '100%', maxHeight: '85vh', borderRadius: 12, objectFit: 'contain' }}
-            />
-            <button
-              onClick={() => setViewingDoc(null)}
-              style={{
-                position: 'absolute',
-                top: -16,
-                right: -16,
-                width: 36,
-                height: 36,
-                borderRadius: 18,
-                background: '#fff',
-                border: 'none',
-                cursor: 'pointer',
-                fontSize: 18,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 700,
-                color: '#1B2B6B',
-                boxShadow: '0 2px 8px rgba(0,0,0,0.3)',
-              }}
-            >
-              ✕
-            </button>
+          <div onClick={e => e.stopPropagation()} style={{ position: 'relative', background: '#0A1628', border: '1px solid rgba(255,184,0,0.3)', borderRadius: 20, padding: 24, maxWidth: '90vw', maxHeight: '90vh', boxShadow: '0 30px 90px rgba(0,0,0,0.8)', color: '#fff', display: 'flex', flexDirection: 'column', gap: 16 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid rgba(255,255,255,0.08)', paddingBottom: 12 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <span style={{ fontSize: 20 }}>🪪</span>
+                <div>
+                  <h3 style={{ fontSize: 16, fontWeight: 800, color: '#fff', margin: 0 }}>Ghana National ID & Document Inspector</h3>
+                  <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.5)', margin: '2px 0 0' }}>Verify ID number, photo match, and security features</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingDoc(null)}
+                style={{
+                  width: 34,
+                  height: 34,
+                  borderRadius: 17,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  cursor: 'pointer',
+                  fontSize: 16,
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={{ flex: 1, overflow: 'hidden', display: 'flex', alignItems: 'center', justifyContent: 'center', background: '#050B14', borderRadius: 14, padding: 12, border: '1px solid rgba(255,255,255,0.05)' }}>
+              <img
+                src={viewingDoc}
+                alt="Document"
+                style={{ maxWidth: '100%', maxHeight: '68vh', borderRadius: 10, objectFit: 'contain' }}
+              />
+            </div>
+
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', paddingTop: 8 }}>
+              <span style={{ fontSize: 12, color: 'rgba(255,184,0,0.8)', fontWeight: 600 }}>🔒 Encrypted Storage • Official Verification Document</span>
+              <a href={viewingDoc} target="_blank" rel="noreferrer" style={{ background: 'rgba(255,184,0,0.12)', border: '1px solid rgba(255,184,0,0.3)', color: '#FFB800', padding: '8px 16px', borderRadius: 8, fontSize: 12, fontWeight: 700, textDecoration: 'none' }}>
+                Open Full Original ↗
+              </a>
+            </div>
           </div>
         </div>
       )}
@@ -344,7 +423,7 @@ export default function KYCPage() {
         </div>
       ) : queue.length === 0 ? (
         <EmptyState
-          icon={filter === 'pending' ? '✅' : filter === 'approved' ? '🏅' : '❌'}
+          icon={filter === 'pending' ? Ico.checkCircle : filter === 'approved' ? Ico.shield : Ico.xCircle}
           title={
             filter === 'pending' ? 'All caught up!' :
               filter === 'approved' ? 'No approved artisans yet' :
@@ -390,10 +469,11 @@ export default function KYCPage() {
                 key={entry.id}
                 style={{
                   background: '#fff',
-                  border: '2px solid #E8EDF8',
-                  borderRadius: 16,
+                  border: '1px solid #E2E8F0',
+                  borderRadius: 20,
                   overflow: 'hidden',
-                  transition: 'border-color 0.2s',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+                  transition: 'box-shadow 0.2s',
                 }}
               >
                 {/* ── Card header ── */}
@@ -579,59 +659,16 @@ export default function KYCPage() {
                       }}>
                         Submitted Documents ({photos.length})
                       </p>
-                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                      <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
                         {photos.map((url, i) => {
                           const resolvedUrl = getImageUrl(url, 'portfolios')
                           return (
-                            <div
+                            <DocumentThumbnail
                               key={i}
+                              url={resolvedUrl}
+                              label={i === 0 ? 'ID' : i === 1 ? 'CERT' : `DOC ${i + 1}`}
                               onClick={() => setViewingDoc(resolvedUrl)}
-                              style={{
-                                position: 'relative',
-                                cursor: 'pointer',
-                                borderRadius: 8,
-                                overflow: 'hidden',
-                                border: '2px solid #E8EDF8',
-                                transition: 'border-color 0.15s',
-                              }}
-                              onMouseEnter={e => (e.currentTarget as HTMLElement).style.borderColor = '#1B2B6B'}
-                              onMouseLeave={e => (e.currentTarget as HTMLElement).style.borderColor = '#E8EDF8'}
-                            >
-                              <img
-                                src={resolvedUrl}
-                                alt={`Document ${i + 1}`}
-                                style={{ width: 72, height: 72, objectFit: 'cover', display: 'block' }}
-                              />
-                              <div style={{
-                                position: 'absolute',
-                                inset: 0,
-                                background: 'rgba(27,43,107,0)',
-                                display: 'flex',
-                                alignItems: 'center',
-                                justifyContent: 'center',
-                                fontSize: 20,
-                                transition: 'background 0.15s',
-                              }}
-                                onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = 'rgba(27,43,107,0.4)'}
-                                onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = 'rgba(27,43,107,0)'}
-                              >
-                              </div>
-                              <div style={{
-                                position: 'absolute',
-                                bottom: 4,
-                                right: 4,
-                                background: 'rgba(0,0,0,0.6)',
-                                borderRadius: 4,
-                                paddingTop: 2,
-                                paddingBottom: 2,
-                                paddingLeft: 4,
-                                paddingRight: 4,
-                                fontSize: 10,
-                                color: '#fff',
-                              }}>
-                                {i === 0 ? 'ID' : i === 1 ? 'Cert' : `Doc ${i + 1}`}
-                              </div>
-                            </div>
+                            />
                           )
                         })}
                       </div>

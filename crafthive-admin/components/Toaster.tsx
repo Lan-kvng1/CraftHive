@@ -34,11 +34,11 @@ export default function Toaster() {
     return () => window.removeEventListener('ch-toast', handler)
   }, [])
 
-  const colors: Record<string, string> = {
-    success: 'background:#16a34a;color:#fff',
-    error: 'background:#dc2626;color:#fff',
-    warning: 'background:#d97706;color:#fff',
-    info: 'background:#1B2B6B;color:#fff',
+  const colors: Record<string, { background: string; color: string }> = {
+    success: { background: '#16a34a', color: '#fff' },
+    error: { background: '#dc2626', color: '#fff' },
+    warning: { background: '#d97706', color: '#fff' },
+    info: { background: '#1B2B6B', color: '#fff' },
   }
   const icons: Record<string, string> = {
     success: '✓', error: '✕', warning: '⚠', info: 'ℹ',
@@ -56,12 +56,7 @@ export default function Toaster() {
           padding: '12px 16px', borderRadius: 12,
           fontSize: 14, fontWeight: 500,
           boxShadow: '0 4px 20px rgba(0,0,0,0.15)',
-          ...Object.fromEntries(
-            colors[t.type].split(';').map(s => {
-              const [k, v] = s.split(':')
-              return [k.trim(), v?.trim()]
-            }).filter(([k]) => k)
-          ),
+          ...colors[t.type],
         }}>
           <span style={{
             width: 20, height: 20, borderRadius: 10,

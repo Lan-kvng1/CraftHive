@@ -69,15 +69,15 @@ function EmptyChart({ message }: { message: string }) {
       gap: 10,
     }}>
       <svg width={36} height={36} viewBox="0 0 24 24" fill="none"
-        stroke="#E8EDF8" strokeWidth={1.5}
+        stroke="rgba(15,23,42,0.1)" strokeWidth={1.5}
         strokeLinecap="round" strokeLinejoin="round">
         <line x1="18" y1="20" x2="18" y2="10" />
         <line x1="12" y1="20" x2="12" y2="4" />
         <line x1="6" y1="20" x2="6" y2="14" />
         <line x1="2" y1="20" x2="22" y2="20" />
       </svg>
-      <p style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>No data yet</p>
-      <p style={{ fontSize: 12, color: '#6B7494', textAlign: 'center', maxWidth: 200, lineHeight: 1.5 }}>
+      <p style={{ fontSize: 13, fontWeight: 600, color: '#0F172A' }}>No data yet</p>
+      <p style={{ fontSize: 12, color: '#64748B', textAlign: 'center', maxWidth: 200, lineHeight: 1.5 }}>
         {message}
       </p>
     </div>
@@ -96,7 +96,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
   // Prevent double-fetch on mount when revRange useEffect fires
   const mountedRef = useRef(false)
 
-  // ── Activity feed — fixed FK aliases + Promise.all ──────────────────────────
+  // ── Activity feed — Centralized Activity Logs ──────────────────────────
   const fetchActivityFeed = async () => {
     const timeAgo = (d: string) => {
       const diff = Math.floor((Date.now() - new Date(d).getTime()) / 1000)
@@ -107,120 +107,30 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
     }
 
     try {
-      const [
-        { data: bookingsData },
-        { data: kycData },
-        { data: paymentsData },
-        { data: disputesData },
-        { data: newArtisansData },
-        { data: reviewsData },
-      ] = await Promise.all([
-        supabase.from('bookings').select('*').order('created_at', { ascending: false }).limit(2),
-        supabase.from('artisan_profiles').select('*').eq('status', 'pending').order('created_at', { ascending: false }).limit(1),
-        supabase.from('payments').select('*').eq('status', 'released').order('created_at', { ascending: false }).limit(1),
-        supabase.from('disputes').select('*').order('created_at', { ascending: false }).limit(1),
-        supabase.from('artisan_profiles').select('*').order('created_at', { ascending: false }).limit(1),
-        supabase.from('reviews').select('*').eq('rating', 5).order('created_at', { ascending: false }).limit(1),
-      ])
+      const { data, error } = await supabase
+        .from('activity_logs')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10)
 
-      // Gather profile IDs to fetch in one batch
-      const profileIds = new Set<string>()
-      bookingsData?.forEach((b: any) => {
-        if (b.customer_id) profileIds.add(b.customer_id)
-        if (b.artisan_id) profileIds.add(b.artisan_id)
-      })
-      kycData?.forEach((k: any) => { if (k.user_id) profileIds.add(k.user_id) })
-      paymentsData?.forEach((p: any) => { if (p.artisan_id) profileIds.add(p.artisan_id) })
-      disputesData?.forEach((d: any) => { if (d.raised_by) profileIds.add(d.raised_by) })
-      newArtisansData?.forEach((a: any) => { if (a.user_id) profileIds.add(a.user_id) })
-      reviewsData?.forEach((r: any) => { if (r.artisan_id) profileIds.add(r.artisan_id) })
+      if (error) throw error
 
-      // Gather artisan profile IDs to map trade categories
-      const artisanUserIds = new Set<string>()
-      bookingsData?.forEach((b: any) => { if (b.artisan_id) artisanUserIds.add(b.artisan_id) })
+      const items: ActivityItem[] = (data || []).map((log: any) => ({
+        type: log.type as any, // 'user' | 'booking' | 'payment' | 'dispute' | 'review' | 'admin' | 'kyc'
+        text: log.message,
+        sub: log.sub_message || '—',
+        time: timeAgo(log.created_at),
+      }))
 
-      const [profilesRes, artisansRes] = await Promise.all([
-        profileIds.size > 0 
-          ? supabase.from('profiles').select('id, full_name').in('id', [...profileIds])
-          : Promise.resolve({ data: [] }),
-        artisanUserIds.size > 0 
-          ? supabase.from('artisan_profiles').select('user_id, trade_category').in('user_id', [...artisanUserIds])
-          : Promise.resolve({ data: [] })
-      ])
-
-      const profileMap = (profilesRes.data || []).reduce((acc: any, p: any) => {
-        acc[p.id] = p.full_name
-        return acc
-      }, {})
-
-      const artisanMap = (artisansRes.data || []).reduce((acc: any, a: any) => {
-        acc[a.user_id] = a.trade_category
-        return acc
-      }, {})
-
-      const items: ActivityItem[] = []
-
-      bookingsData?.forEach((b: any) => {
-        items.push({
-          type: 'booking',
-          text: `Booking BK-${b.id.slice(0, 8).toUpperCase()}`,
-          sub: `${profileMap[b.customer_id] || '—'} → ${profileMap[b.artisan_id] || '—'} · ${artisanMap[b.artisan_id] || '—'}`,
-          time: timeAgo(b.created_at),
-        })
-      })
-
-      kycData?.forEach((k: any) => {
-        items.push({
-          type: 'kyc',
-          text: `KYC submitted by ${profileMap[k.user_id] || 'Artisan'}`,
-          sub: `${k.trade_category || '—'} · Awaiting review`,
-          time: timeAgo(k.created_at),
-        })
-      })
-
-      paymentsData?.forEach((p: any) => {
-        items.push({
-          type: 'payment',
-          text: `Payment released for BK-${(p.booking_id || '').slice(0, 8).toUpperCase()}`,
-          sub: `GH₵ ${(p.amount ?? 0).toLocaleString()} to ${profileMap[p.artisan_id] || '—'}`,
-          time: timeAgo(p.created_at),
-        })
-      })
-
-      disputesData?.forEach((d: any) => {
-        items.push({
-          type: 'dispute',
-          text: `Dispute raised on BK-${(d.booking_id || '').slice(0, 8).toUpperCase()}`,
-          sub: `${profileMap[d.raised_by] || '—'} · ${d.reason || '—'}`,
-          time: timeAgo(d.created_at),
-        })
-      })
-
-      newArtisansData?.forEach((a: any) => {
-        items.push({
-          type: 'user',
-          text: 'New artisan registered',
-          sub: `${profileMap[a.user_id] || '—'} · ${a.trade_category || '—'}`,
-          time: timeAgo(a.created_at),
-        })
-      })
-
-      reviewsData?.forEach((r: any) => {
-        items.push({
-          type: 'review',
-          text: `${r.rating}-star review posted`,
-          sub: `${profileMap[r.artisan_id] || '—'} · BK-${(r.booking_id || '').slice(0, 8).toUpperCase()}`,
-          time: timeAgo(r.created_at),
-        })
-      })
-
-      setActivityFeed(items.slice(0, 6))
-
+      setActivityFeed(items)
     } catch (err) {
       console.warn('fetchActivityFeed error:', err)
+      // Fallback empty state
       setActivityFeed([])
     }
   }
+
+
 
   // ── Revenue chart ────────────────────────────────────────────────────────────
   const fetchRevenueChart = async (range: '7d' | '30d' | '90d') => {
@@ -259,15 +169,24 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       .gte('created_at', since)
       .order('created_at', { ascending: true })
 
-    if (!profileRows || profileRows.length === 0) { setGrowthChart([]); return }
-
+    // Pre-fill the last 6 months with 0s so the chart looks professional
     const grouped: Record<string, { customers: number; artisans: number }> = {}
-    profileRows.forEach((p: { role: string; created_at: string }) => {
-      const month = new Date(p.created_at).toLocaleDateString('en-GH', { month: 'short' })
-      if (!grouped[month]) grouped[month] = { customers: 0, artisans: 0 }
-      if (p.role === 'customer') grouped[month].customers++
-      else grouped[month].artisans++
-    })
+    for (let i = 5; i >= 0; i--) {
+      const d = new Date()
+      d.setMonth(d.getMonth() - i)
+      const monthStr = d.toLocaleDateString('en-GH', { month: 'short' })
+      grouped[monthStr] = { customers: 0, artisans: 0 }
+    }
+
+    if (profileRows && profileRows.length > 0) {
+      profileRows.forEach((p: { role: string; created_at: string }) => {
+        const month = new Date(p.created_at).toLocaleDateString('en-GH', { month: 'short' })
+        if (grouped[month]) {
+          if (p.role === 'customer') grouped[month].customers++
+          else grouped[month].artisans++
+        }
+      })
+    }
 
     setGrowthChart(
       Object.entries(grouped).map(([month, v]) => ({
@@ -388,9 +307,10 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
     icon: React.ReactNode; accent?: boolean
   }) => (
     <div style={{
-      background: accent ? '#1B2B6B' : '#fff',
-      border: accent ? 'none' : '1px solid #E8EDF8',
-      borderRadius: 14,
+      background: accent ? 'linear-gradient(135deg, rgba(59,130,246,0.1) 0%, rgba(59,130,246,0.02) 100%)' : 'rgba(255,255,255,0.8)',
+      border: accent ? '1px solid rgba(59,130,246,0.2)' : '1px solid rgba(15,23,42,0.05)',
+      backdropFilter: 'blur(20px)',
+      borderRadius: 16,
       paddingTop: 20,
       paddingBottom: 20,
       paddingLeft: 20,
@@ -398,24 +318,25 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       display: 'flex',
       flexDirection: 'column',
       gap: 14,
+      boxShadow: accent ? '0 10px 30px rgba(59,130,246,0.1)' : '0 4px 20px rgba(0,0,0,0.03)',
     }}>
       <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
         <div style={{
           width: 40,
           height: 40,
           borderRadius: 10,
-          background: accent ? 'rgba(255,255,255,0.12)' : '#EEF1FB',
+          background: accent ? 'rgba(59,130,246,0.15)' : 'rgba(15,23,42,0.03)',
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'center',
-          color: accent ? '#FFB800' : '#1B2B6B',
+          color: accent ? '#2563EB' : '#475569',
         }}>
           {icon}
         </div>
         <span style={{
           fontSize: 12,
           fontWeight: 700,
-          color: trend.dir === 'up' ? '#16a34a' : '#dc2626',
+          color: trend.dir === 'up' ? '#16a34a' : '#ef4444',
           display: 'flex',
           alignItems: 'center',
           gap: 3,
@@ -428,7 +349,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
         <p style={{
           fontSize: 28,
           fontWeight: 800,
-          color: accent ? '#fff' : '#1B2B6B',
+          color: '#0F172A',
           letterSpacing: '-0.5px',
           lineHeight: 1,
         }}>
@@ -436,21 +357,21 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
         </p>
         <p style={{
           fontSize: 13,
-          color: accent ? 'rgba(255,255,255,0.65)' : '#6B7494',
+          color: accent ? '#2563EB' : '#64748B',
           marginTop: 6,
           fontWeight: 500,
         }}>
           {label}
         </p>
       </div>
-      <p style={{ fontSize: 12, color: accent ? 'rgba(255,255,255,0.45)' : '#6B7494' }}>
+      <p style={{ fontSize: 12, color: '#94A3B8' }}>
         {sub}
       </p>
     </div>
   )
 
   return (
-    <div style={{
+    <div className="overview-container" style={{
       paddingTop: 24,
       paddingBottom: 24,
       paddingLeft: 24,
@@ -459,9 +380,19 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       flexDirection: 'column',
       gap: 20,
     }}>
+      <style>{`
+        @media (max-width: 1024px) {
+          .stat-grid-4 { grid-template-columns: repeat(2, 1fr) !important; }
+          .stat-grid-2-1 { grid-template-columns: 1fr !important; }
+        }
+        @media (max-width: 640px) {
+          .stat-grid-4 { grid-template-columns: 1fr !important; }
+          .overview-container { padding: 14px !important; gap: 14px !important; }
+        }
+      `}</style>
 
       {/* ── Row 1: Primary stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
         <PrimaryCard
           label="Total Users"
           value={loading ? '—' : (dbStats ? (dbStats.totalCustomers + dbStats.totalArtisans).toLocaleString() : '0')}
@@ -494,7 +425,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       </div>
 
       {/* ── Row 2: Secondary stat cards ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
+      <div className="stat-grid-4" style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 16 }}>
         {[
           {
             icon: Ico.shield, bg: '#fef9c3', iconColor: '#a16207',
@@ -522,9 +453,10 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
           },
         ].map((s, i) => (
           <div key={i} style={{
-            background: '#fff',
-            border: '1px solid #E8EDF8',
-            borderRadius: 14,
+            background: 'rgba(255,255,255,0.8)',
+            border: '1px solid rgba(15,23,42,0.05)',
+            backdropFilter: 'blur(20px)',
+            borderRadius: 16,
             paddingTop: 14,
             paddingBottom: 14,
             paddingLeft: 16,
@@ -532,13 +464,14 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
             display: 'flex',
             alignItems: 'center',
             gap: 12,
+            boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
           }}>
             <div style={{
               width: 38,
               height: 38,
               borderRadius: 10,
-              background: s.bg,
-              color: s.iconColor,
+              background: `rgba(${s.iconColor === '#a16207' ? '253,224,71' : s.iconColor === '#dc2626' ? '248,113,113' : s.iconColor === '#7c3aed' ? '167,139,250' : '74,222,128'}, 0.15)`,
+              color: s.iconColor === '#a16207' ? '#a16207' : s.iconColor === '#dc2626' ? '#dc2626' : s.iconColor === '#7c3aed' ? '#7c3aed' : '#15803d',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -547,10 +480,10 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
               {s.icon}
             </div>
             <div style={{ flex: 1, minWidth: 0 }}>
-              <p style={{ fontSize: 22, fontWeight: 800, color: '#1B2B6B', lineHeight: 1 }}>
+              <p style={{ fontSize: 22, fontWeight: 800, color: '#0F172A', lineHeight: 1 }}>
                 {s.value}
               </p>
-              <p style={{ fontSize: 12, color: '#6B7494', marginTop: 4 }}>{s.label}</p>
+              <p style={{ fontSize: 12, color: '#64748B', marginTop: 4 }}>{s.label}</p>
             </div>
             {s.badge ? (
               <span style={{
@@ -560,8 +493,8 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                 paddingLeft: 9,
                 paddingRight: 9,
                 borderRadius: 20,
-                background: s.badgeBg,
-                color: s.badgeColor,
+                background: `rgba(${s.iconColor === '#a16207' ? '253,224,71' : s.iconColor === '#dc2626' ? '248,113,113' : '167,139,250'}, 0.15)`,
+                color: s.iconColor === '#a16207' ? '#fde047' : s.iconColor === '#dc2626' ? '#f87171' : '#a78bfa',
                 fontWeight: 600,
                 flexShrink: 0,
                 whiteSpace: 'nowrap',
@@ -569,7 +502,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                 {s.badge}
               </span>
             ) : (
-              <span style={{ color: '#16a34a', display: 'flex', alignItems: 'center' }}>
+              <span style={{ color: '#4ade80', display: 'flex', alignItems: 'center' }}>
                 {Ico.trendUp}
               </span>
             )}
@@ -578,24 +511,26 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       </div>
 
       {/* ── Row 3: Revenue chart + Top Categories ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div className="stat-grid-2-1" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
 
         {/* Revenue Overview */}
         <div style={{
-          background: '#fff',
-          border: '1px solid #E8EDF8',
-          borderRadius: 14,
+          background: 'rgba(255,255,255,0.8)',
+          border: '1px solid rgba(15,23,42,0.05)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: 16,
           paddingTop: 20,
           paddingBottom: 20,
           paddingLeft: 20,
           paddingRight: 20,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
             <div>
-              <h3 style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 15 }}>Revenue Overview</h3>
-              <p style={{ fontSize: 12, color: '#6B7494', marginTop: 3 }}>Total earnings across the platform</p>
+              <h3 style={{ fontWeight: 700, color: '#0F172A', fontSize: 15 }}>Revenue Overview</h3>
+              <p style={{ fontSize: 12, color: '#64748B', marginTop: 3 }}>Total earnings across the platform</p>
             </div>
-            <div style={{ display: 'flex', gap: 2, background: '#F5F7FF', borderRadius: 8, paddingTop: 3, paddingBottom: 3, paddingLeft: 3, paddingRight: 3 }}>
+            <div style={{ display: 'flex', gap: 2, background: 'rgba(15,23,42,0.03)', borderRadius: 8, paddingTop: 3, paddingBottom: 3, paddingLeft: 3, paddingRight: 3 }}>
               {(['7d', '30d', '90d'] as const).map(r => (
                 <button key={r} onClick={() => setRevRange(r)} style={{
                   paddingTop: 4,
@@ -604,12 +539,12 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                   paddingRight: 12,
                   borderRadius: 6,
                   border: 'none',
-                  background: revRange === r ? '#1B2B6B' : 'transparent',
-                  color: revRange === r ? '#fff' : '#6B7494',
+                  background: revRange === r ? '#3B82F6' : 'transparent',
+                  color: revRange === r ? '#fff' : '#64748B',
                   cursor: 'pointer',
                   fontSize: 12,
                   fontWeight: 500,
-                  transition: 'all 0.15s',
+                  transition: 'all 0.2s',
                 }}>
                   {r}
                 </button>
@@ -626,15 +561,15 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
               <AreaChart data={revenueChart}>
                 <defs>
                   <linearGradient id="revGrad" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="0%" stopColor="#1B2B6B" stopOpacity={0.2} />
-                    <stop offset="100%" stopColor="#1B2B6B" stopOpacity={0} />
+                    <stop offset="0%" stopColor="#FFB800" stopOpacity={0.3} />
+                    <stop offset="100%" stopColor="#FFB800" stopOpacity={0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8EDF8" />
-                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#6B7494' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#6B7494' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₵${(v / 1000).toFixed(0)}k`} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #E8EDF8', fontSize: 12 }} formatter={(v) => [`GH₵ ${Number(v ?? 0).toLocaleString()}`, 'Revenue']} />
-                <Area type="monotone" dataKey="revenue" stroke="#1B2B6B" strokeWidth={2.5} fill="url(#revGrad)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.05)" />
+                <XAxis dataKey="label" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} tickFormatter={(v: number) => `₵${(v / 1000).toFixed(0)}k`} />
+                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid rgba(15,23,42,0.05)', background: '#ffffff', color: '#0F172A', fontSize: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }} formatter={(v) => [`GH₵ ${Number(v ?? 0).toLocaleString()}`, 'Revenue']} />
+                <Area type="monotone" dataKey="revenue" stroke="#FFB800" strokeWidth={3} fill="url(#revGrad)" />
               </AreaChart>
             </ResponsiveContainer>
           )}
@@ -642,16 +577,18 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
 
         {/* Top Categories */}
         <div style={{
-          background: '#fff',
-          border: '1px solid #E8EDF8',
-          borderRadius: 14,
+          background: 'rgba(255,255,255,0.8)',
+          border: '1px solid rgba(15,23,42,0.05)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: 16,
           paddingTop: 20,
           paddingBottom: 20,
           paddingLeft: 20,
           paddingRight: 20,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         }}>
-          <h3 style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 15, marginBottom: 3 }}>Top Categories</h3>
-          <p style={{ fontSize: 12, color: '#6B7494', marginBottom: 14 }}>Approved artisans by trade</p>
+          <h3 style={{ fontWeight: 700, color: '#0F172A', fontSize: 15, marginBottom: 3 }}>Top Categories</h3>
+          <p style={{ fontSize: 12, color: '#64748B', marginBottom: 14 }}>Approved artisans by trade</p>
 
           {categoryChart.length === 0 ? (
             <div style={{ height: 200 }}>
@@ -682,20 +619,27 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
       </div>
 
       {/* ── Row 4: User Growth + Live Activity ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+      <div className="stat-grid-2-1" style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
 
         {/* User Growth */}
         <div style={{
-          background: '#fff',
-          border: '1px solid #E8EDF8',
-          borderRadius: 14,
+          background: 'rgba(255,255,255,0.8)',
+          border: '1px solid rgba(15,23,42,0.05)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: 16,
           paddingTop: 20,
           paddingBottom: 20,
           paddingLeft: 20,
           paddingRight: 20,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         }}>
-          <h3 style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 15, marginBottom: 3 }}>User Growth</h3>
-          <p style={{ fontSize: 12, color: '#6B7494', marginBottom: 16 }}>New registrations over 6 months</p>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+            <div>
+              <h3 style={{ fontWeight: 700, color: '#0F172A', fontSize: 15 }}>User Growth</h3>
+              <p style={{ fontSize: 12, color: '#64748B', marginTop: 3 }}>New registrations over 6 months</p>
+            </div>
+            <span style={{ fontSize: 11, background: 'rgba(59,130,246,0.1)', color: '#2563EB', padding: '4px 10px', borderRadius: 20, fontWeight: 700 }}>+12.4% vs last Q</span>
+          </div>
 
           {growthChart.length === 0 ? (
             <div style={{ height: 180 }}>
@@ -704,13 +648,13 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
           ) : (
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={growthChart} barGap={4}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#E8EDF8" />
-                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#6B7494' }} axisLine={false} tickLine={false} />
-                <YAxis tick={{ fontSize: 11, fill: '#6B7494' }} axisLine={false} tickLine={false} />
-                <Tooltip contentStyle={{ borderRadius: 8, border: '1px solid #E8EDF8', fontSize: 12 }} />
-                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} formatter={(value) => <span style={{ color: '#6B7494', fontSize: 12 }}>{value}</span>} />
-                <Bar dataKey="customers" fill="#1B2B6B" radius={[4, 4, 0, 0]} name="customers" />
-                <Bar dataKey="artisans" fill="#FFB800" radius={[4, 4, 0, 0]} name="artisans" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(15,23,42,0.05)" />
+                <XAxis dataKey="month" tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} />
+                <YAxis tick={{ fontSize: 11, fill: '#64748B' }} axisLine={false} tickLine={false} allowDecimals={false} />
+                <Tooltip contentStyle={{ borderRadius: 10, border: '1px solid rgba(15,23,42,0.08)', background: '#0A1628', color: '#fff', fontSize: 12, boxShadow: '0 10px 30px rgba(0,0,0,0.2)' }} formatter={(val, name) => [`${val} users`, name === 'customers' ? 'Customers' : 'Artisans']} />
+                <Legend wrapperStyle={{ fontSize: 12, paddingTop: 8 }} formatter={(value) => <span style={{ color: '#64748B', fontSize: 12, textTransform: 'capitalize' }}>{value}</span>} />
+                <Bar dataKey="customers" fill="rgba(59,130,246,0.35)" radius={[4, 4, 0, 0]} name="customers" maxBarSize={40} />
+                <Bar dataKey="artisans" fill="#FFB800" radius={[4, 4, 0, 0]} name="artisans" maxBarSize={40} />
               </BarChart>
             </ResponsiveContainer>
           )}
@@ -718,16 +662,18 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
 
         {/* Live Activity */}
         <div style={{
-          background: '#fff',
-          border: '1px solid #E8EDF8',
-          borderRadius: 14,
+          background: 'rgba(255,255,255,0.8)',
+          border: '1px solid rgba(15,23,42,0.05)',
+          backdropFilter: 'blur(20px)',
+          borderRadius: 16,
           paddingTop: 20,
           paddingBottom: 20,
           paddingLeft: 20,
           paddingRight: 20,
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
-            <h3 style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 15 }}>Live Activity</h3>
+            <h3 style={{ fontWeight: 700, color: '#0F172A', fontSize: 15 }}>Live Activity</h3>
             <div style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: 12, color: '#16a34a', fontWeight: 600 }}>
               <span style={{
                 width: 7,
@@ -746,7 +692,11 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
               <EmptyChart message="Activity will appear as bookings, KYC and payments come in." />
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+            <div style={{ 
+              display: 'flex', flexDirection: 'column', gap: 14, 
+              maxHeight: 280, overflowY: 'auto', paddingRight: 4, 
+              scrollbarWidth: 'thin', scrollbarColor: '#E2E8F0 transparent' 
+            }}>
               {activityFeed.map((item, i) => {
                 const style = activityStyle[item.type] ?? activityStyle.booking
                 return (
@@ -768,7 +718,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                       <p style={{
                         fontSize: 12,
                         fontWeight: 600,
-                        color: '#1B2B6B',
+                        color: '#0F172A',
                         lineHeight: 1.4,
                         marginBottom: 2,
                       }}>
@@ -776,7 +726,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                       </p>
                       <p style={{
                         fontSize: 11,
-                        color: '#6B7494',
+                        color: '#64748B',
                         whiteSpace: 'nowrap',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
@@ -784,7 +734,7 @@ export default function OverviewPage({ isGuest = false }: { isGuest?: boolean })
                         {item.sub}
                       </p>
                     </div>
-                    <p style={{ fontSize: 11, color: '#6B7494', flexShrink: 0, whiteSpace: 'nowrap' }}>
+                    <p style={{ fontSize: 11, color: '#94A3B8', flexShrink: 0, whiteSpace: 'nowrap' }}>
                       {item.time}
                     </p>
                   </div>

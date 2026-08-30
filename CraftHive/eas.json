@@ -17,6 +17,13 @@
       "distribution": "internal",
       "android": {
         "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_SUPABASE_URL": "https://nbjretwmzpyclsgmqaqe.supabase.co",
+        "EXPO_PUBLIC_SUPABASE_ANON_KEY": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5ianJldHdtenB5Y2xzZ21xYXFlIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODAxNDU4ODYsImV4cCI6MjA5NTcyMTg4Nn0.NsLtaJAcwJMg8Y3UfC2ZFwtucNrAbbrqk_xlCtAef6c",
+        "EXPO_PUBLIC_PROJECT_ID": "5dedeb33-a331-45e5-a8ba-16c35a1cf4ed",
+        "EXPO_PUBLIC_GOOGLE_MAPS_KEY": "AIzaSyBRsQqc90RUmMnCNlP0EcLEg5kOflGfIsk",
+        "EXPO_PUBLIC_PAYSTACK_KEY": "pk_test_fcc13c487aa47c8fb3e658a630cb4aa7f7de7b55"
       }
     },
     "production": {

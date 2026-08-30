@@ -10,7 +10,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from 'react-native-maps'
+import MapView, { Marker, Polyline, PROVIDER_GOOGLE } from '../../src/components/Map'
 import * as Location from 'expo-location'
 import { supabase } from '../../src/lib/supabase'
 import { useAppTheme } from '../../src/hooks/useAppTheme'

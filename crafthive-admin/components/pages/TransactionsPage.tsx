@@ -13,7 +13,9 @@ interface Payment {
   created_at: string
   booking_id: string
   customer_name: string
+  customer_avatar?: string
   artisan_name: string
+  artisan_avatar?: string
   ticket_number: string
   platform_fee: number
   artisan_payout: number
@@ -62,11 +64,11 @@ export default function TransactionsPage() {
 
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name')
+      .select('id, full_name, avatar_url')
       .in('id', userIds)
 
-    const profileMap: Record<string, string> = {}
-    profiles?.forEach((p: any) => { profileMap[p.id] = p.full_name || '—' })
+    const profileMap: Record<string, { name: string, avatar: string }> = {}
+    profiles?.forEach((p: any) => { profileMap[p.id] = { name: p.full_name || '—', avatar: p.avatar_url } })
 
     // Batch fetch booking ticket numbers
     const bookingIds = [...new Set(data.map((p: any) => p.booking_id).filter(Boolean))]
@@ -85,8 +87,10 @@ export default function TransactionsPage() {
       payment_method: p.payment_method || '—',
       created_at: p.created_at,
       booking_id: p.booking_id,
-      customer_name: profileMap[p.customer_id] || '—',
-      artisan_name: profileMap[p.artisan_id] || '—',
+      customer_name: profileMap[p.customer_id]?.name || '—',
+      customer_avatar: profileMap[p.customer_id]?.avatar,
+      artisan_name: profileMap[p.artisan_id]?.name || '—',
+      artisan_avatar: profileMap[p.artisan_id]?.avatar,
       ticket_number: 'BK-' + bookingMap[p.booking_id] || '—',
       platform_fee: p.platform_fee || 0,
       artisan_payout: p.artisan_payout || 0,
@@ -109,6 +113,35 @@ export default function TransactionsPage() {
   }
 
   useEffect(() => { fetchPayments() }, [])
+
+  const exportToCSV = () => {
+    if (payments.length === 0) { toast('No transactions to export', 'error'); return }
+
+    const headers = ['TXN ID', 'Booking Ticket', 'Customer', 'Artisan', 'Total Paid (GHC)', 'Commission 10% (GHC)', 'Artisan Payout (GHC)', 'Payment Method', 'Status', 'Date']
+    const rows = payments.map(p => [
+      p.id.slice(0, 8).toUpperCase(),
+      p.ticket_number,
+      `"${(p.customer_name || '').replace(/"/g, '""')}"`,
+      `"${(p.artisan_name || '').replace(/"/g, '""')}"`,
+      p.amount,
+      p.platform_fee,
+      p.artisan_payout,
+      p.payment_method,
+      p.status,
+      `"${new Date(p.created_at).toLocaleDateString()}"`
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_transactions_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${payments.length} transaction(s) exported`, 'success')
+  }
 
   const formatMethod = (m: string) => {
     const map: Record<string, string> = {
@@ -188,9 +221,24 @@ export default function TransactionsPage() {
         ))}
       </div>
 
-      <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1B2B6B', marginBottom: 16 }}>
-        Transactions
-      </h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 16 }}>
+        <h2 style={{ fontSize: 17, fontWeight: 700, color: '#1B2B6B' }}>
+          Transactions
+        </h2>
+        <button
+          onClick={exportToCSV}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 16px',
+            background: '#fff', border: '1px solid #E2E8F0',
+            borderRadius: 8, cursor: 'pointer', fontSize: 13,
+            color: '#6B7494', fontWeight: 600,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          ⬇ Export CSV
+        </button>
+      </div>
 
       {loading ? (
         <div style={{ textAlign: 'center', padding: '60px 0', color: '#6B7494' }}>
@@ -203,7 +251,13 @@ export default function TransactionsPage() {
           message="Transactions will appear once customers complete bookings and payments."
         />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+        }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr style={{ background: '#F5F7FF', borderBottom: '1px solid #E8EDF8' }}>
@@ -227,26 +281,63 @@ export default function TransactionsPage() {
               </tr>
             </thead>
             <tbody>
-              {payments.map((p, i) => (
-                <tr
-                  key={p.id}
-                  style={{
-                    borderBottom: '1px solid #E8EDF8',
-                    background: i % 2 === 0 ? '#fff' : '#FAFBFF',
-                  }}
-                >
-                  <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#1B2B6B' }}>
-                    {p.id.slice(0, 8).toUpperCase()}
-                  </td>
-                  <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontFamily: 'monospace', fontSize: 11, color: '#6B7494' }}>
-                    {p.ticket_number}
-                  </td>
-                  <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
-                    {p.customer_name}
-                  </td>
-                  <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
-                    {p.artisan_name}
-                  </td>
+              {payments.map((p, i) => {
+                const getInitials = (name: string) => name ? name.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) : '?'
+                return (
+                  <tr
+                    key={p.id}
+                    style={{
+                      borderBottom: i === payments.length - 1 ? 'none' : '1px solid #E8EDF8',
+                      background: '#fff',
+                      transition: 'background 0.2s ease',
+                    }}
+                    onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8FAFC'}
+                    onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#fff'}
+                  >
+                    <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#1B2B6B' }}>
+                      {p.id.slice(0, 8).toUpperCase()}
+                    </td>
+                    <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontFamily: 'monospace', fontSize: 11, color: '#6B7494' }}>
+                      {p.ticket_number}
+                    </td>
+                    <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {p.customer_avatar ? (
+                          <img src={p.customer_avatar} alt={p.customer_name} style={{ width: 32, height: 32, borderRadius: 32, objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{
+                            width: 32, height: 32, borderRadius: 32,
+                            background: '#111D4A', color: '#fff',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, fontWeight: 600, fontFamily: 'monospace', flexShrink: 0,
+                          }}>
+                            {getInitials(p.customer_name)}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
+                          {p.customer_name}
+                        </span>
+                      </div>
+                    </td>
+                    <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {p.artisan_avatar ? (
+                          <img src={p.artisan_avatar} alt={p.artisan_name} style={{ width: 32, height: 32, borderRadius: 32, objectFit: 'cover', flexShrink: 0 }} />
+                        ) : (
+                          <div style={{
+                            width: 32, height: 32, borderRadius: 32,
+                            background: '#FFB800', color: '#1B2B6B',
+                            display: 'flex', alignItems: 'center', justifyContent: 'center',
+                            fontSize: 11, fontWeight: 600, fontFamily: 'monospace', flexShrink: 0,
+                          }}>
+                            {getInitials(p.artisan_name)}
+                          </div>
+                        )}
+                        <span style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
+                          {p.artisan_name}
+                        </span>
+                      </div>
+                    </td>
                   <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, fontFamily: 'monospace', fontSize: 12, fontWeight: 600, color: '#6B7494' }}>
                     GH₵ {p.amount.toLocaleString()}
                   </td>
@@ -278,7 +369,8 @@ export default function TransactionsPage() {
                     {formatDate(p.created_at)}
                   </td>
                 </tr>
-              ))}
+              )
+            })}
             </tbody>
           </table>
           <div style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16, borderTop: '1px solid #E8EDF8', fontSize: 12, color: '#6B7494' }}>

@@ -7,6 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
+import * as Linking from 'expo-linking'
 import { supabase } from '../../src/lib/supabase'
 import { useAppTheme } from '../../src/hooks/useAppTheme'
 import { ArrowLeftIcon, ShieldIcon, EyeIcon, EyeOffIcon, CheckCircleIcon } from '../../src/components/Icons'
@@ -22,6 +23,29 @@ export default function ResetPassword() {
   const [showCo, setShowCo] = useState(false)
   const [loading, setLoading] = useState(false)
   const [done, setDone] = useState(false)
+  const url = Linking.useURL()
+
+  React.useEffect(() => {
+    if (url) {
+      // Parse token from crafthive://(auth)/reset-password#access_token=123&refresh_token=456&type=recovery
+      const hash = url.split('#')[1]
+      if (hash) {
+        const params = new URLSearchParams(hash)
+        const accessToken = params.get('access_token')
+        const refreshToken = params.get('refresh_token')
+        const type = params.get('type')
+
+        if (accessToken && refreshToken && type === 'recovery') {
+          supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          }).then(({ error }) => {
+            if (error) Alert.alert('Error', 'Recovery link expired or invalid.')
+          })
+        }
+      }
+    }
+  }, [url])
 
   const submit = async () => {
     if (!password.trim()) { Alert.alert('Required', 'Please enter a new password.'); return }

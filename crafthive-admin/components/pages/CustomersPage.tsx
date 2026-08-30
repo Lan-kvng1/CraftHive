@@ -111,6 +111,38 @@ export default function CustomersPage() {
     }
   }
 
+  const exportToCSV = () => {
+    if (customers.length === 0) {
+      toast('No customers to export', 'error')
+      return
+    }
+
+    const headers = ['Name', 'Email', 'Phone', 'Location', 'Total Bookings', 'Status', 'Joined Date']
+    
+    const rows = customers.map(c => [
+      `"${(c.full_name || '').replace(/"/g, '""')}"`,
+      `"${(c.email || '').replace(/"/g, '""')}"`,
+      `"${(c.phone || '').replace(/"/g, '""')}"`,
+      `"${(c.location || '').replace(/"/g, '""')}"`,
+      c.booking_count,
+      c.status,
+      `"${new Date(c.created_at).toLocaleDateString()}"`
+    ])
+
+    const csvContent = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_customers_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    
+    toast('Customers exported successfully', 'success')
+  }
+
   const filtered = customers.filter(c =>
     (c.full_name || '').toLowerCase().includes(search.toLowerCase()) ||
     (c.phone || '').includes(search)
@@ -184,7 +216,7 @@ export default function CustomersPage() {
               />
             </div>
             <button
-              onClick={() => toast('Exporting customers to CSV…', 'info')}
+              onClick={exportToCSV}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -239,7 +271,13 @@ export default function CustomersPage() {
           message={search ? 'Try a different search term.' : 'No customers have registered yet.'}
         />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+        }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr style={{ background: '#F5F7FF', borderBottom: '1px solid #E8EDF8' }}>
@@ -266,9 +304,12 @@ export default function CustomersPage() {
                 <tr
                   key={c.id}
                   style={{
-                    borderBottom: '1px solid #E8EDF8',
-                    background: i % 2 === 0 ? '#fff' : '#FAFBFF',
+                    borderBottom: i === paged.length - 1 ? 'none' : '1px solid #E8EDF8',
+                    background: '#fff',
+                    transition: 'background 0.2s ease',
                   }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8FAFC'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#fff'}
                 >
                   {/* Customer name + avatar */}
                   <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 }}>

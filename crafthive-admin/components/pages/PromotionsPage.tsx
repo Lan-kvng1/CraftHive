@@ -92,6 +92,33 @@ export default function PromotionsPage() {
     }
   }
 
+  const exportToCSV = () => {
+    if (list.length === 0) { toast('No promotions to export', 'error'); return }
+
+    const headers = ['Code', 'Type', 'Discount Value', 'Max Uses', 'Current Uses', 'Expires At', 'Active', 'Created']
+    const rows = list.map(p => [
+      p.code,
+      p.discount_type,
+      p.discount_type === 'percentage' ? `${p.discount_value}%` : `GHC ${p.discount_value}`,
+      p.max_uses ?? 'Unlimited',
+      p.current_uses,
+      p.expires_at ? `"${new Date(p.expires_at).toLocaleDateString()}"` : 'No Expiry',
+      p.is_active ? 'Yes' : 'No',
+      `"${new Date(p.created_at).toLocaleDateString()}"`
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_promotions_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${list.length} coupon(s) exported`, 'success')
+  }
+
   const formatDate = (d: string | null) => {
     if (!d) return 'No expiry'
     return new Date(d).toLocaleDateString('en-GH', {
@@ -234,9 +261,24 @@ export default function PromotionsPage() {
         title="Promotions & Coupons"
         subtitle={`${list.filter(p => p.is_active).length} active promotions`}
         actions={
-          <Btn variant="gold" onClick={() => setShowCreate(true)}>
-            + Create Coupon
-          </Btn>
+          <div style={{ display: 'flex', gap: 8 }}>
+            <button
+              onClick={exportToCSV}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 6,
+                padding: '7px 16px',
+                background: '#fff', border: '1px solid #E2E8F0',
+                borderRadius: 8, cursor: 'pointer', fontSize: 13,
+                color: '#6B7494', fontWeight: 600,
+                boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+              }}
+            >
+              ⬇ Export CSV
+            </button>
+            <Btn variant="gold" onClick={() => setShowCreate(true)}>
+              + Create Coupon
+            </Btn>
+          </div>
         }
       />
 
@@ -251,7 +293,13 @@ export default function PromotionsPage() {
           message="Create your first coupon to attract more customers."
         />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 12, overflow: 'hidden' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+        }}>
           <Table headers={['Code', 'Type', 'Value', 'Usage', 'Expires', 'Status', 'Actions']}>
             {list.map(p => (
               <TR key={p.id}>

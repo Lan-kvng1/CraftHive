@@ -88,16 +88,53 @@ export default function CommissionsPage() {
     toast(`Commission rate updated to ${r}%`, 'success')
   }
 
+  const exportToCSV = () => {
+    if (monthlyData.length === 0) { toast('No commission data to export', 'error'); return }
+
+    const headers = ['Month', 'Commission Earned (GHC)']
+    const rows = monthlyData.map(m => [
+      m.month,
+      m.commission,
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_commissions_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast('Commission data exported', 'success')
+  }
+
   return (
     <div style={{ padding: 24, display: 'flex', flexDirection: 'column', gap: 20 }}>
-      <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1B2B6B' }}>Commission Settings</h2>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <h2 style={{ fontSize: 18, fontWeight: 700, color: '#1B2B6B' }}>Commission Settings</h2>
+        <button
+          onClick={exportToCSV}
+          style={{
+            display: 'flex', alignItems: 'center', gap: 6,
+            padding: '7px 16px',
+            background: '#fff', border: '1px solid #E2E8F0',
+            borderRadius: 8, cursor: 'pointer', fontSize: 13,
+            color: '#6B7494', fontWeight: 600,
+            boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+          }}
+        >
+          {Ico.download} Export CSV
+        </button>
+      </div>
 
       {/* Stats cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 16 }}>
         {/* Current rate card — navy border */}
         <div style={{
           background: '#fff', border: '2px solid #1B2B6B',
-          borderRadius: 14, padding: 20,
+          borderRadius: 16, padding: 24,
+          boxShadow: '0 4px 20px rgba(27,43,107,0.08)',
         }}>
           <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', marginBottom: 12 }}>
             <div>
@@ -188,7 +225,7 @@ export default function CommissionsPage() {
       </div>
 
       {/* Monthly Commission chart */}
-      <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 14, padding: 20 }}>
+      <div style={{ background: '#fff', border: '1px solid #E2E8F0', borderRadius: 16, padding: 24, boxShadow: '0 4px 20px rgba(0,0,0,0.03)' }}>
         <h3 style={{ fontSize: 15, fontWeight: 700, color: '#1B2B6B', marginBottom: 16 }}>
           Monthly Commission
         </h3>

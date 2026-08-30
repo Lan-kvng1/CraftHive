@@ -37,11 +37,11 @@ const MONTHLY_PLACEHOLDER = [
 ]
 
 const EXPORT_ITEMS = [
-  { label: 'All Users',    icon: Ico.users    },
-  { label: 'All Artisans', icon: Ico.tool     },
-  { label: 'All Bookings', icon: Ico.calendar },
-  { label: 'Transactions', icon: Ico.receipt  },
-  { label: 'Dispute Log',  icon: Ico.scale    },
+  { label: 'All Users',    icon: Ico.users,    key: 'users'    },
+  { label: 'All Artisans', icon: Ico.tool,     key: 'artisans' },
+  { label: 'All Bookings', icon: Ico.calendar, key: 'bookings' },
+  { label: 'Transactions', icon: Ico.receipt,  key: 'payments' },
+  { label: 'Dispute Log',  icon: Ico.scale,    key: 'disputes' },
 ]
 
 export default function ReportsPage() {
@@ -125,6 +125,51 @@ export default function ReportsPage() {
   useEffect(() => {
     fetchStats()
   }, [])
+
+  const exportDataset = async (key: string, label: string) => {
+    toast(`Preparing ${label} export…`, 'info')
+    try {
+      let headers: string[] = []
+      let rows: (string | number)[][] = []
+
+      if (key === 'users') {
+        const { data } = await supabase.from('profiles').select('id, full_name, email, phone, role, created_at').order('created_at', { ascending: false })
+        headers = ['ID', 'Full Name', 'Email', 'Phone', 'Role', 'Joined']
+        rows = (data || []).map((u: any) => [u.id, `"${(u.full_name||'').replace(/"/g,'""')}"`, `"${(u.email||'')}"`, u.phone||'—', u.role, `"${new Date(u.created_at).toLocaleDateString()}"`])
+      } else if (key === 'artisans') {
+        const { data } = await supabase.from('artisan_profiles').select('user_id, trade_category, status, location, rating, created_at').order('created_at', { ascending: false })
+        headers = ['User ID', 'Trade Category', 'Status', 'Location', 'Rating', 'Since']
+        rows = (data || []).map((a: any) => [a.user_id, `"${(a.trade_category||'').replace(/"/g,'""')}"`, a.status, `"${(a.location||'').replace(/"/g,'""')}"`, a.rating||0, `"${new Date(a.created_at).toLocaleDateString()}"`])
+      } else if (key === 'bookings') {
+        const { data } = await supabase.from('bookings').select('id, title, status, address, scheduled_at, created_at').order('created_at', { ascending: false })
+        headers = ['Ticket ID', 'Title', 'Status', 'Address', 'Scheduled', 'Created']
+        rows = (data || []).map((b: any) => [b.id.slice(0,8).toUpperCase(), `"${(b.title||'').replace(/"/g,'""')}"`, b.status, `"${(b.address||'').replace(/"/g,'""')}"`, `"${new Date(b.scheduled_at).toLocaleString()}"`, `"${new Date(b.created_at).toLocaleDateString()}"`])
+      } else if (key === 'payments') {
+        const { data } = await supabase.from('payments').select('id, amount, platform_fee, artisan_payout, status, payment_method, created_at').order('created_at', { ascending: false })
+        headers = ['TXN ID', 'Total (GHC)', 'Commission (GHC)', 'Payout (GHC)', 'Status', 'Method', 'Date']
+        rows = (data || []).map((p: any) => [p.id.slice(0,8).toUpperCase(), p.amount||0, p.platform_fee||0, p.artisan_payout||0, p.status, p.payment_method||'—', `"${new Date(p.created_at).toLocaleDateString()}"`])
+      } else if (key === 'disputes') {
+        const { data } = await supabase.from('disputes').select('id, reason, description, status, created_at').order('created_at', { ascending: false })
+        headers = ['Case ID', 'Reason', 'Description', 'Status', 'Date']
+        rows = (data || []).map((d: any) => [d.id.slice(0,8).toUpperCase(), `"${(d.reason||'').replace(/"/g,'""')}"`, `"${(d.description||'').replace(/"/g,'""')}"`, d.status, `"${new Date(d.created_at).toLocaleDateString()}"`])
+      }
+
+      if (rows.length === 0) { toast('No data found to export', 'warning'); return }
+
+      const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const link = document.createElement('a')
+      link.href = url
+      link.setAttribute('download', `crafthive_${key}_${new Date().toISOString().split('T')[0]}.csv`)
+      document.body.appendChild(link)
+      link.click()
+      document.body.removeChild(link)
+      toast(`${rows.length} ${label} record(s) exported`, 'success')
+    } catch (err: any) {
+      toast(`Export failed: ${err.message}`, 'error')
+    }
+  }
 
   const completionRate = stats.totalBookings > 0
     ? Math.round((stats.completedBookings / stats.totalBookings) * 100)
@@ -598,7 +643,7 @@ export default function ReportsPage() {
           {EXPORT_ITEMS.map(item => (
             <button
               key={item.label}
-              onClick={() => toast(`Exporting ${item.label} to CSV…`, 'info')}
+              onClick={() => exportDataset(item.key, item.label)}
               style={{
                 display: 'flex', flexDirection: 'column',
                 alignItems: 'center', gap: 10,

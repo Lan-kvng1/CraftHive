@@ -13,7 +13,7 @@ export const supabase = createClient(url, anon, {
     auth: {
         persistSession: true,
         autoRefreshToken: true,
-        detectSessionInUrl: false,
+        detectSessionInUrl: true,       // needed for password reset callback URL
         storageKey: 'crafthive-admin-auth',
     },
 })

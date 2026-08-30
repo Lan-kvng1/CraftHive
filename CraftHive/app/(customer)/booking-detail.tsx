@@ -7,7 +7,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter, useLocalSearchParams } from 'expo-router'
-import MapView, { Marker, PROVIDER_GOOGLE } from 'react-native-maps'
+import MapView, { Marker, PROVIDER_GOOGLE } from '../../src/components/Map'
 import { supabase } from '../../src/lib/supabase'
 import { useAppTheme } from '../../src/hooks/useAppTheme'
 import { useLang } from '../../src/context/LanguageContext'

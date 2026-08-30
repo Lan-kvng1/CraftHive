@@ -16,6 +16,7 @@ interface Payout {
   processed_at: string | null
   artisan_id: string
   artisan_name: string
+  artisan_avatar?: string
   artisan_phone: string | null
   payout_ref: string
 }
@@ -43,11 +44,11 @@ export default function PayoutsPage() {
     const artisanIds = [...new Set(data.map((p: any) => p.artisan_id).filter(Boolean))]
     const { data: profiles } = await supabase
       .from('profiles')
-      .select('id, full_name, phone')
+      .select('id, full_name, phone, avatar_url')
       .in('id', artisanIds)
 
-    const profileMap: Record<string, { name: string; phone: string | null }> = {}
-    profiles?.forEach((p: any) => { profileMap[p.id] = { name: p.full_name || '—', phone: p.phone } })
+    const profileMap: Record<string, { name: string; phone: string | null; avatar?: string }> = {}
+    profiles?.forEach((p: any) => { profileMap[p.id] = { name: p.full_name || '—', phone: p.phone, avatar: p.avatar_url } })
 
     const enriched: Payout[] = data.map((p: any, i: number) => ({
       id: p.id,
@@ -61,6 +62,7 @@ export default function PayoutsPage() {
       processed_at: p.status === 'released' ? p.created_at : null,
       artisan_id: p.artisan_id,
       artisan_name: profileMap[p.artisan_id]?.name || '—',
+      artisan_avatar: profileMap[p.artisan_id]?.avatar,
       artisan_phone: profileMap[p.artisan_id]?.phone || null,
     }))
 
@@ -109,6 +111,35 @@ export default function PayoutsPage() {
     toast(`${pending.length} payouts processed`, 'success')
   }
 
+  const exportToCSV = () => {
+    if (payouts.length === 0) { toast('No payouts to export', 'error'); return }
+
+    const headers = ['Payout Ref', 'Artisan', 'MoMo Number', 'Total Paid (GHC)', 'Commission (GHC)', 'Artisan Payout (GHC)', 'Payment Method', 'Status', 'Requested Date', 'Processed Date']
+    const rows = payouts.map(p => [
+      p.payout_ref,
+      `"${(p.artisan_name || '').replace(/"/g, '""')}"`,
+      p.artisan_phone || '—',
+      p.amount,
+      p.platform_fee,
+      p.artisan_payout,
+      p.payment_method,
+      p.status,
+      `"${new Date(p.created_at).toLocaleDateString()}"`,
+      p.processed_at ? `"${new Date(p.processed_at).toLocaleDateString()}"` : '—',
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_payouts_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${payouts.length} payout record(s) exported`, 'success')
+  }
+
   const formatDate = (d: string | null) => {
     if (!d) return '—'
     return new Date(d).toLocaleDateString('en-GH', { day: 'numeric', month: 'short', year: 'numeric' })
@@ -135,16 +166,30 @@ export default function PayoutsPage() {
             {payouts.filter(p => p.status === 'held').length} pending payouts
           </p>
         </div>
-        <button
-          onClick={processAll}
-          style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '9px 18px', background: '#1B2B6B', color: '#fff',
-            border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600,
-          }}
-        >
-          {Ico.refresh} Process All Pending
-        </button>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={exportToCSV}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 6,
+              padding: '9px 16px', background: '#fff',
+              border: '1px solid #E2E8F0', borderRadius: 10,
+              cursor: 'pointer', fontSize: 13, color: '#6B7494', fontWeight: 600,
+              boxShadow: '0 1px 2px rgba(0,0,0,0.04)',
+            }}
+          >
+            ⬇ Export CSV
+          </button>
+          <button
+            onClick={processAll}
+            style={{
+              display: 'flex', alignItems: 'center', gap: 8,
+              padding: '9px 18px', background: '#1B2B6B', color: '#fff',
+              border: 'none', borderRadius: 10, cursor: 'pointer', fontSize: 14, fontWeight: 600,
+            }}
+          >
+            {Ico.refresh} Process All Pending
+          </button>
+        </div>
       </div>
 
       {pendingTotal > 0 && (
@@ -169,7 +214,13 @@ export default function PayoutsPage() {
           message="Artisan payouts will appear here once jobs are completed."
         />
       ) : (
-        <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 14, overflow: 'hidden' }}>
+        <div style={{
+          background: '#fff',
+          border: '1px solid #E2E8F0',
+          borderRadius: 16,
+          overflow: 'hidden',
+          boxShadow: '0 4px 20px rgba(0,0,0,0.03)',
+        }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 14 }}>
             <thead>
               <tr style={{ background: '#F5F7FF', borderBottom: '1px solid #E8EDF8' }}>
@@ -189,28 +240,48 @@ export default function PayoutsPage() {
                 <tr
                   key={p.id}
                   style={{
-                    borderBottom: '1px solid #E8EDF8',
-                    background: i % 2 === 0 ? '#fff' : '#FAFBFF',
+                    borderBottom: i === payouts.length - 1 ? 'none' : '1px solid #E8EDF8',
+                    background: '#fff',
+                    transition: 'background 0.2s ease',
                   }}
+                  onMouseEnter={e => (e.currentTarget as HTMLElement).style.background = '#F8FAFC'}
+                  onMouseLeave={e => (e.currentTarget as HTMLElement).style.background = '#fff'}
                 >
                   <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: 11, fontWeight: 700, color: '#1B2B6B' }}>
                     {p.payout_ref}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                      <div style={{
-                        width: 32, height: 32, borderRadius: 32,
-                        background: '#FFB800', color: '#1B2B6B',
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        fontSize: 11, fontWeight: 600, fontFamily: 'monospace', flexShrink: 0,
-                      }}>
-                        {getInitials(p.artisan_name)}
+                  <td style={{ paddingTop: 12, paddingBottom: 12, paddingLeft: 16, paddingRight: 16 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <div style={{ position: 'relative' }}>
+                          {p.artisan_avatar ? (
+                            <img src={p.artisan_avatar} alt={p.artisan_name} style={{ width: 34, height: 34, borderRadius: 34, objectFit: 'cover' }} />
+                          ) : (
+                            <div style={{
+                              width: 34, height: 34, borderRadius: 34,
+                              background: '#FFB800', color: '#1B2B6B',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                              fontSize: 12, fontWeight: 700, fontFamily: 'monospace',
+                            }}>
+                              {getInitials(p.artisan_name)}
+                            </div>
+                          )}
+                          <div style={{
+                            position: 'absolute', bottom: -2, right: -2,
+                            width: 12, height: 12, borderRadius: 12,
+                            background: p.status === 'released' ? '#16a34a' : p.status === 'held' ? '#FFB800' : '#dc2626',
+                            border: '2px solid #fff',
+                          }} />
+                        </div>
+                        <div>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: '#1B2B6B', letterSpacing: '-0.3px' }}>
+                            {p.artisan_name}
+                          </div>
+                          <div style={{ fontSize: 11, color: '#6B7494', marginTop: 1 }}>
+                            {p.artisan_phone || 'No phone'}
+                          </div>
+                        </div>
                       </div>
-                      <span style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
-                        {p.artisan_name}
-                      </span>
-                    </div>
-                  </td>
+                    </td>
                   <td style={{ padding: '12px 16px', fontFamily: 'monospace', fontSize: 13, fontWeight: 600, color: '#6B7494' }}>
                     GH₵ {p.amount.toLocaleString()}
                   </td>

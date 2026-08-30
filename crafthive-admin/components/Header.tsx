@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import { Ico } from './icons'
-import { supabase, getCurrentUser } from '@/lib/supabase'
+import { supabase, getCurrentUser, getImageUrl } from '@/lib/supabase'
 import type { Page } from '@/lib/types'
 
 const breadcrumbs: Record<Page, string[]> = {
@@ -199,10 +199,10 @@ export default function Header({
     }}>
       {isGuest
         ? '?'
-        : adminInfo?.avatar_url && adminInfo.avatar_url.startsWith('http')
+        : adminInfo?.avatar_url
           ? (
             <img
-              src={adminInfo.avatar_url}
+              src={getImageUrl(adminInfo.avatar_url, 'avatars')}
               alt={adminInfo.full_name}
               style={{ width: '100%', height: '100%', objectFit: 'cover' }}
               onError={e => {
@@ -220,7 +220,12 @@ export default function Header({
   )
 
   return (
-    <header style={{ background: '#fff', borderBottom: '1px solid #E8EDF8', flexShrink: 0 }}>
+    <header style={{ 
+      background: 'rgba(10, 22, 40, 0.92)', 
+      backdropFilter: 'blur(20px)', 
+      borderBottom: '1px solid rgba(255,255,255,0.05)', 
+      flexShrink: 0, position: 'relative', zIndex: 30 
+    }}>
 
       {/* ── Guest warning bar ── */}
       {isGuest && (
@@ -278,14 +283,15 @@ export default function Header({
           {crumbs.map((c, i) => (
             <span key={i} style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               {i > 0 && (
-                <span style={{ color: '#D1D5DB', display: 'flex', alignItems: 'center' }}>
+                <span style={{ color: 'rgba(255,255,255,0.2)', display: 'flex', alignItems: 'center' }}>
                   {Ico.chevronRight}
                 </span>
               )}
               <span style={{
                 fontSize: 13,
-                color: i === crumbs.length - 1 ? '#1B2B6B' : '#6B7494',
+                color: i === crumbs.length - 1 ? '#fff' : 'rgba(255,255,255,0.4)',
                 fontWeight: i === crumbs.length - 1 ? 600 : 400,
+                letterSpacing: '0.02em'
               }}>
                 {c}
               </span>
@@ -296,13 +302,8 @@ export default function Header({
         {/* Search */}
         <div style={{ position: 'relative' }}>
           <span style={{
-            position: 'absolute',
-            left: 10,
-            top: '50%',
-            transform: 'translateY(-50%)',
-            color: '#6B7494',
-            display: 'flex',
-            alignItems: 'center',
+            position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)',
+            color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center',
           }}>
             {Ico.search}
           </span>
@@ -311,18 +312,13 @@ export default function Header({
             onChange={e => setSearch(e.target.value)}
             placeholder="Search users, bookings..."
             style={{
-              background: '#F5F7FF',
-              border: '1px solid #E8EDF8',
-              borderRadius: 8,
-              paddingTop: 6,
-              paddingBottom: 6,
-              paddingLeft: 32,
-              paddingRight: 12,
-              fontSize: 13,
-              color: '#1B2B6B',
-              outline: 'none',
-              width: 240,
+              background: 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              borderRadius: 8, paddingTop: 6, paddingBottom: 6, paddingLeft: 32, paddingRight: 12,
+              fontSize: 13, color: '#fff', outline: 'none', width: 220, transition: 'border 0.2s',
             }}
+            onFocus={e => e.currentTarget.style.border = '1px solid rgba(255,184,0,0.4)'}
+            onBlur={e => e.currentTarget.style.border = '1px solid rgba(255,255,255,0.08)'}
           />
         </div>
 
@@ -335,17 +331,11 @@ export default function Header({
               if (!showNotifs) fetchNotifications()
             }}
             style={{
-              width: 36,
-              height: 36,
-              borderRadius: 8,
-              background: showNotifs ? '#EEF1FB' : '#F5F7FF',
-              border: '1px solid #E8EDF8',
-              cursor: 'pointer',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              position: 'relative',
-              color: '#1B2B6B',
+              width: 36, height: 36, borderRadius: 8,
+              background: showNotifs ? 'rgba(255,184,0,0.1)' : 'rgba(255,255,255,0.05)',
+              border: '1px solid rgba(255,255,255,0.08)',
+              cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+              position: 'relative', color: 'rgba(255,255,255,0.7)', transition: 'all 0.2s',
             }}
           >
             {Ico.bell}
@@ -369,12 +359,13 @@ export default function Header({
               top: 44,
               right: 0,
               width: 360,
-              background: '#fff',
-              border: '1px solid #E8EDF8',
+              background: '#ffffff',
+              border: '1px solid rgba(15,23,42,0.1)',
               borderRadius: 14,
-              boxShadow: '0 8px 40px rgba(27,43,107,0.12)',
+              boxShadow: '0 24px 60px rgba(0,0,0,0.1)',
               zIndex: 1000,
               overflow: 'hidden',
+              backdropFilter: 'blur(20px)',
             }}>
               {/* Notif header */}
               <div style={{
@@ -385,14 +376,14 @@ export default function Header({
                 paddingBottom: 14,
                 paddingLeft: 16,
                 paddingRight: 16,
-                borderBottom: '1px solid #E8EDF8',
+                borderBottom: '1px solid rgba(15,23,42,0.05)',
               }}>
                 <div>
-                  <p style={{ fontWeight: 700, color: '#1B2B6B', fontSize: 14 }}>
+                  <p style={{ fontWeight: 700, color: '#0F172A', fontSize: 14 }}>
                     Notifications
                   </p>
                   {unread > 0 && (
-                    <p style={{ fontSize: 12, color: '#6B7494', marginTop: 2 }}>
+                    <p style={{ fontSize: 12, color: '#64748B', marginTop: 2 }}>
                       {unread} unread
                     </p>
                   )}
@@ -455,30 +446,32 @@ export default function Header({
                         paddingBottom: 12,
                         paddingLeft: 16,
                         paddingRight: 16,
-                        background: n.is_read ? '#fff' : '#F5F7FF',
-                        borderBottom: '1px solid #F5F7FF',
+                        background: n.is_read ? 'transparent' : 'rgba(59,130,246,0.05)',
+                        borderBottom: '1px solid rgba(15,23,42,0.05)',
                         cursor: n.is_read ? 'default' : 'pointer',
                         transition: 'background 0.15s',
                       }}
+                      onMouseOver={e => { if(n.is_read) e.currentTarget.style.background = 'rgba(15,23,42,0.02)' }}
+                      onMouseOut={e => { if(n.is_read) e.currentTarget.style.background = 'transparent' }}
                     >
                       <div style={{
                         width: 36,
                         height: 36,
                         borderRadius: 18,
-                        background: n.is_read ? '#F5F7FF' : '#EEF1FB',
+                        background: n.is_read ? 'rgba(15,23,42,0.05)' : 'rgba(59,130,246,0.15)',
                         display: 'flex',
                         alignItems: 'center',
                         justifyContent: 'center',
                         flexShrink: 0,
-                        color: '#1B2B6B',
+                        color: n.is_read ? '#64748B' : '#2563EB',
                       }}>
                         {Ico.bell}
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <p style={{
                           fontSize: 13,
-                          fontWeight: n.is_read ? 400 : 600,
-                          color: '#1B2B6B',
+                          fontWeight: n.is_read ? 500 : 700,
+                          color: '#0F172A',
                           lineHeight: 1.4,
                           marginBottom: 2,
                         }}>
@@ -486,7 +479,7 @@ export default function Header({
                         </p>
                         <p style={{
                           fontSize: 12,
-                          color: '#6B7494',
+                          color: '#64748B',
                           lineHeight: 1.4,
                           marginBottom: 4,
                           overflow: 'hidden',
@@ -496,7 +489,7 @@ export default function Header({
                         }}>
                           {n.body}
                         </p>
-                        <p style={{ fontSize: 11, color: '#6B7494' }}>
+                        <p style={{ fontSize: 11, color: '#94A3B8' }}>
                           {getTimeAgo(n.created_at)}
                         </p>
                       </div>
@@ -505,7 +498,7 @@ export default function Header({
                           width: 8,
                           height: 8,
                           borderRadius: 4,
-                          background: '#1B2B6B',
+                          background: '#3B82F6',
                           flexShrink: 0,
                           marginTop: 4,
                         }} />
@@ -523,28 +516,21 @@ export default function Header({
           <button
             onClick={() => setShowProfile(v => !v)}
             style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              paddingLeft: 12,
-              borderLeft: '1px solid #E8EDF8',
-              background: 'none',
-              border: 'none',
-              cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 10, paddingLeft: 12,
+              background: 'none', borderTop: 'none', borderRight: 'none', borderBottom: 'none',
+              borderLeft: '1px solid rgba(255,255,255,0.06)', cursor: 'pointer',
             }}
           >
             <AvatarEl size={34} />
             <div style={{ textAlign: 'left' }}>
-              <p style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B', lineHeight: 1 }}>
+              <p style={{ fontSize: 13, fontWeight: 700, color: '#fff', lineHeight: 1 }}>
                 {isGuest ? 'Guest' : (adminInfo?.full_name || 'Loading...')}
               </p>
-              <p style={{ fontSize: 11, color: '#6B7494', marginTop: 2 }}>
-                {isGuest
-                  ? 'Limited access'
-                  : ROLE_LABEL[adminInfo?.role || ''] || 'Admin'}
+              <p style={{ fontSize: 11, color: 'rgba(255,255,255,0.4)', marginTop: 2, letterSpacing: '0.05em' }}>
+                {isGuest ? 'Limited access' : ROLE_LABEL[adminInfo?.role || ''] || 'Admin'}
               </p>
             </div>
-            <span style={{ color: '#6B7494', display: 'flex', alignItems: 'center' }}>
+            <span style={{ color: 'rgba(255,255,255,0.3)', display: 'flex', alignItems: 'center' }}>
               {Ico.chevronD}
             </span>
           </button>

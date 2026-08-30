@@ -2,6 +2,7 @@
 import { useEffect, useState } from 'react'
 import { supabaseAdmin as supabase } from '@/lib/supabase'
 import { Avatar, Badge, Table, TR, TD, PageHeader, Btn, EmptyState, Modal } from '../ui'
+import { Ico } from '../icons'
 import { toast } from '../Toaster'
 
 interface Booking {
@@ -12,8 +13,8 @@ interface Booking {
   scheduled_at: string
   address: string
   created_at: string
-  customer: { full_name: string }
-  artisan: { full_name: string }
+  customer: { full_name: string; avatar_url?: string }
+  artisan: { full_name: string; avatar_url?: string }
   artisan_profile: { trade_category: string }
 }
 
@@ -64,18 +65,18 @@ export default function BookingsPage() {
 
       const { data: profiles } = await supabase
         .from('profiles')
-        .select('id, full_name')
+        .select('id, full_name, avatar_url')
         .in('id', userIds)
 
       const profileMap = (profiles || []).reduce((acc: any, p: any) => {
-        acc[p.id] = p.full_name
+        acc[p.id] = p
         return acc
       }, {})
 
       const enriched = bookingsData.map((b: any) => ({
         ...b,
-        customer: { full_name: profileMap[b.customer_id] || '—' },
-        artisan: { full_name: profileMap[b.artisan_id] || '—' },
+        customer: { full_name: profileMap[b.customer_id]?.full_name || '—', avatar_url: profileMap[b.customer_id]?.avatar_url },
+        artisan: { full_name: profileMap[b.artisan_id]?.full_name || '—', avatar_url: profileMap[b.artisan_id]?.avatar_url },
         artisan_profile: null
       }))
       setBookings(enriched)
@@ -97,6 +98,34 @@ export default function BookingsPage() {
     }
   }
 
+  const exportToCSV = () => {
+    const source = activeTab === 'all' ? bookings : bookings.filter(b => b.status === activeTab)
+    if (source.length === 0) { toast('No bookings to export', 'error'); return }
+
+    const headers = ['Ticket ID', 'Customer', 'Artisan', 'Service Title', 'Scheduled At', 'Address', 'Status', 'Created At']
+    const rows = source.map(b => [
+      b.id.slice(0, 8).toUpperCase(),
+      `"${((b.customer as any)?.full_name || '').replace(/"/g, '""')}"`,
+      `"${((b.artisan as any)?.full_name || '').replace(/"/g, '""')}"`,
+      `"${(b.title || '').replace(/"/g, '""')}"`,
+      `"${new Date(b.scheduled_at).toLocaleString()}"`,
+      `"${(b.address || '').replace(/"/g, '""')}"`,
+      b.status,
+      `"${new Date(b.created_at).toLocaleDateString()}"`
+    ])
+
+    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const link = document.createElement('a')
+    link.href = url
+    link.setAttribute('download', `crafthive_bookings_${activeTab}_${new Date().toISOString().split('T')[0]}.csv`)
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
+    toast(`${source.length} booking(s) exported`, 'success')
+  }
+
   const formatDate = (date: string) =>
     new Date(date).toLocaleDateString('en-GH', {
       day: 'numeric', month: 'short', year: 'numeric',
@@ -116,8 +145,8 @@ export default function BookingsPage() {
         title="Bookings Management"
         subtitle={`${bookings.length} total bookings`}
         actions={
-          <Btn variant="secondary" onClick={() => toast('Exporting bookings…', 'info')}>
-            ⬇ Export
+          <Btn variant="secondary" onClick={exportToCSV}>
+            {Ico.download} Export CSV
           </Btn>
         }
       />
@@ -183,7 +212,7 @@ export default function BookingsPage() {
           Loading bookings...
         </div>
       ) : filtered.length === 0 ? (
-        <EmptyState icon="📅" title="No bookings found" message="No bookings in this category yet." />
+        <EmptyState icon={Ico.calendar} title="No bookings found" message="No bookings in this category yet." />
       ) : (
         <div style={{ background: '#fff', border: '1px solid #E8EDF8', borderRadius: 12, overflow: 'hidden' }}>
           <Table headers={['Ticket', 'Customer', 'Artisan', 'Service', 'Scheduled', 'Status', 'Actions']}>
@@ -196,7 +225,7 @@ export default function BookingsPage() {
                 </TD>
                 <TD>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar initials={getInitials((b.customer as any)?.full_name || '')} size="sm" />
+                    <Avatar initials={getInitials((b.customer as any)?.full_name || '')} src={(b.customer as any)?.avatar_url} size="sm" />
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
                       {(b.customer as any)?.full_name || '—'}
                     </span>
@@ -204,7 +233,7 @@ export default function BookingsPage() {
                 </TD>
                 <TD>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                    <Avatar initials={getInitials((b.artisan as any)?.full_name || '')} size="sm" color="gold" />
+                    <Avatar initials={getInitials((b.artisan as any)?.full_name || '')} src={(b.artisan as any)?.avatar_url} size="sm" color="gold" />
                     <span style={{ fontSize: 13, fontWeight: 600, color: '#1B2B6B' }}>
                       {(b.artisan as any)?.full_name || '—'}
                     </span>
@@ -223,16 +252,18 @@ export default function BookingsPage() {
                   <div style={{ display: 'flex', gap: 4 }}>
                     <button
                       onClick={() => setViewingBooking(b)}
-                      style={{ padding: 6, borderRadius: 6, border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}
+                      title="View Details"
+                      style={{ padding: 6, borderRadius: 6, border: 'none', background: 'none', cursor: 'pointer', color: '#6B7494', display: 'flex', alignItems: 'center' }}
                     >
-                      👁
+                      {Ico.eye}
                     </button>
                     {(b.status === 'pending' || b.status === 'confirmed') && (
                       <button
                         onClick={() => cancelBooking(b.id, b.id.slice(0,8).toUpperCase())}
-                        style={{ padding: 6, borderRadius: 6, border: 'none', background: 'none', cursor: 'pointer', fontSize: 14 }}
+                        title="Cancel Booking"
+                        style={{ padding: 6, borderRadius: 6, border: 'none', background: 'none', cursor: 'pointer', color: '#dc2626', display: 'flex', alignItems: 'center' }}
                       >
-                        ❌
+                        {Ico.trash}
                       </button>
                     )}
                   </div>

@@ -12,13 +12,16 @@ async function isAdmin(req: NextRequest) {
 
     const token = authHeader.split(' ')[1]
     
-    // Create a temporary client with the user's JWT token to check their identity
-    const client = createClient(supabaseUrl, token)
-    const { data: { user }, error } = await client.auth.getUser()
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    })
+    
+    // Verify the JWT token using the admin client
+    const { data: { user }, error } = await supabaseAdmin.auth.getUser(token)
     if (error || !user) return false
 
     // Check the role of this user in the profiles table
-    const { data: profile, error: profileErr } = await client
+    const { data: profile, error: profileErr } = await supabaseAdmin
       .from('profiles')
       .select('role')
       .eq('id', user.id)

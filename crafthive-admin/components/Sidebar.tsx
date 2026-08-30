@@ -74,6 +74,8 @@ export default function Sidebar({
   const [badges, setBadges] = useState<{ kyc: number; disputes: number }>({
     kyc: 0, disputes: 0,
   })
+  const [hoverArrow, setHoverArrow] = useState(false)
+  const [hoverSignOut, setHoverSignOut] = useState(false)
   // Track which badge pages have been visited this session so badge clears on visit
   const [visited, setVisited] = useState<Set<string>>(new Set())
 
@@ -117,52 +119,44 @@ export default function Sidebar({
 
   return (
     <aside style={{
-      width: collapsed ? 64 : 224,
-      minWidth: collapsed ? 64 : 224,
+      width: collapsed ? 68 : 232,
+      minWidth: collapsed ? 68 : 232,
       height: '100vh',
-      background: '#1B2B6B',
+      background: '#0A1628',
+      backdropFilter: 'blur(30px)',
       display: 'flex',
       flexDirection: 'column',
-      transition: 'width 0.25s, min-width 0.25s',
-      overflow: 'hidden',
+      transition: 'width 0.3s cubic-bezier(0.4,0,0.2,1), min-width 0.3s cubic-bezier(0.4,0,0.2,1)',
       flexShrink: 0,
+      borderRight: '1px solid rgba(255,255,255,0.04)',
+      position: 'relative',
+      zIndex: 40,
     }}>
 
       {/* ── Logo + collapse toggle ── */}
       <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 12,
-        paddingTop: 20,
-        paddingBottom: 20,
-        paddingLeft: 16,
-        paddingRight: 16,
-        borderBottom: '1px solid rgba(255,255,255,0.1)',
-        flexShrink: 0,
-        minHeight: 72,
+        display: 'flex', alignItems: 'center', gap: 10,
+        padding: '20px 14px', borderBottom: '1px solid rgba(255,255,255,0.05)',
+        flexShrink: 0, minHeight: 68,
       }}>
         <div style={{
-          width: 32,
-          height: 32,
-          borderRadius: 8,
-          background: '#FFB800',
-          flexShrink: 0,
-          overflow: 'hidden',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
+          width: 36, height: 36, borderRadius: 10,
+          background: 'rgba(255,184,0,0.12)',
+          border: '1px solid rgba(255,184,0,0.2)',
+          flexShrink: 0, overflow: 'hidden',
+          display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           <img src="/logo.png" alt="CraftHive"
-            style={{ width: 28, objectFit: 'contain' }} />
+            style={{ width: 24, height: 24, objectFit: 'contain' }} />
         </div>
 
         {!collapsed && (
           <div style={{ flex: 1, minWidth: 0 }}>
-            <p style={{ color: '#fff', fontWeight: 700, fontSize: 14, lineHeight: 1 }}>
+            <p style={{ color: '#fff', fontWeight: 800, fontSize: 15, lineHeight: 1, letterSpacing: '-0.3px' }}>
               CraftHive
             </p>
-            <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 11, marginTop: 2 }}>
-              {isGuest ? 'Guest Mode' : 'Admin Panel'}
+            <p style={{ color: isGuest ? '#FFB800' : 'rgba(255,255,255,0.3)', fontSize: 10, marginTop: 3, fontWeight: 600, letterSpacing: '0.08em', textTransform: 'uppercase' }}>
+              {isGuest ? '● Guest' : 'Admin Panel'}
             </p>
           </div>
         )}
@@ -171,24 +165,21 @@ export default function Sidebar({
           onClick={onToggle}
           title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
           style={{
-            background: 'rgba(255,255,255,0.1)',
-            border: '1px solid rgba(255,255,255,0.15)',
-            borderRadius: 6,
-            color: 'rgba(255,255,255,0.8)',
-            cursor: 'pointer',
-            paddingTop: 4,
-            paddingBottom: 4,
-            paddingLeft: 4,
-            paddingRight: 4,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
+            position: 'absolute', top: 36, right: -14,
+            background: hoverArrow ? '#FFB800' : '#1E2A3A',
+            border: `1px solid ${hoverArrow ? '#FFB800' : 'rgba(255,255,255,0.08)'}`,
+            borderRadius: 14,
+            color: hoverArrow ? '#0A1628' : 'rgba(255,255,255,0.7)',
+            cursor: 'pointer', padding: 0,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
             flexShrink: 0,
-            marginLeft: collapsed ? 'auto' : 0,
-            transition: 'background 0.15s',
-            width: 28,
-            height: 28,
+            transition: 'all 0.2s cubic-bezier(0.4,0,0.2,1)',
+            width: 28, height: 28,
+            boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+            zIndex: 50,
           }}
+          onMouseEnter={() => setHoverArrow(true)}
+          onMouseLeave={() => setHoverArrow(false)}
         >
           {collapsed ? Ico.chevronR : Ico.chevronL}
         </button>
@@ -197,18 +188,13 @@ export default function Sidebar({
       {/* ── Guest banner ── */}
       {isGuest && !collapsed && (
         <div style={{
-          background: 'rgba(255,184,0,0.15)',
-          borderBottom: '1px solid rgba(255,184,0,0.2)',
-          paddingTop: 8,
-          paddingBottom: 8,
-          paddingLeft: 14,
-          paddingRight: 14,
-          fontSize: 11,
-          color: '#FFB800',
-          lineHeight: 1.4,
-          flexShrink: 0,
+          background: 'rgba(255,184,0,0.08)',
+          borderBottom: '1px solid rgba(255,184,0,0.12)',
+          padding: '7px 14px',
+          fontSize: 11, color: '#FFB800', lineHeight: 1.4, flexShrink: 0,
+          fontWeight: 600,
         }}>
-          Guest mode — limited access
+          Limited guest access
         </div>
       )}
 
@@ -218,11 +204,11 @@ export default function Sidebar({
           <div key={gi} style={{ marginBottom: 16 }}>
             {group.label && !collapsed && (
               <p style={{
-                color: 'rgba(255,255,255,0.3)',
+                color: 'rgba(255,255,255,0.22)',
                 fontSize: 10,
                 fontWeight: 700,
                 textTransform: 'uppercase',
-                letterSpacing: '0.1em',
+                letterSpacing: '0.12em',
                 paddingLeft: 10,
                 paddingRight: 10,
                 marginBottom: 4,
@@ -247,27 +233,20 @@ export default function Sidebar({
                   }
                   style={{
                     width: '100%',
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 10,
-                    paddingTop: 8,
-                    paddingBottom: 8,
-                    paddingLeft: 10,
-                    paddingRight: 10,
-                    borderRadius: 8,
-                    border: 'none',
+                    display: 'flex', alignItems: 'center', gap: 10,
+                    padding: '9px 10px', borderRadius: 8, border: 'none',
                     cursor: disabled ? 'not-allowed' : 'pointer',
-                    background: active ? 'rgba(255,255,255,0.1)' : 'transparent',
+                    background: active ? 'rgba(255,184,0,0.12)' : 'transparent',
                     color: disabled
-                      ? 'rgba(255,255,255,0.2)'
-                      : active ? '#fff' : 'rgba(255,255,255,0.65)',
-                    fontSize: 13,
-                    textAlign: 'left',
-                    marginBottom: 2,
-                    position: 'relative',
-                    transition: 'all 0.15s',
+                      ? 'rgba(255,255,255,0.15)'
+                      : active ? '#FFB800' : 'rgba(255,255,255,0.5)',
+                    fontSize: 13, fontWeight: active ? 700 : 500,
+                    textAlign: 'left', marginBottom: 2, position: 'relative',
+                    transition: 'all 0.2s',
                     justifyContent: collapsed ? 'center' : 'flex-start',
                   }}
+                  onMouseOver={e => { if (!disabled && !active) { (e.currentTarget as HTMLElement).style.background = 'rgba(255,255,255,0.05)'; (e.currentTarget as HTMLElement).style.color = '#fff'; } }}
+                  onMouseOut={e => { if (!active) { (e.currentTarget as HTMLElement).style.background = 'transparent'; (e.currentTarget as HTMLElement).style.color = 'rgba(255,255,255,0.5)'; } }}
                 >
                   {/* Active left bar */}
                   {active && !disabled && (
@@ -276,14 +255,13 @@ export default function Sidebar({
                       left: 0,
                       top: '50%',
                       transform: 'translateY(-50%)',
-                      width: 3,
-                      height: 20,
+                      width: 3, height: 20,
                       background: '#FFB800',
                       borderRadius: '0 2px 2px 0',
                     }} />
                   )}
 
-                  <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0 }}>
+                  <span style={{ display: 'flex', alignItems: 'center', flexShrink: 0, color: active ? '#FFB800' : 'rgba(255,255,255,0.35)' }}>
                     {item.icon}
                   </span>
 
@@ -291,11 +269,11 @@ export default function Sidebar({
                     <>
                       <span style={{ flex: 1 }}>{item.label}</span>
 
-                      {/* Live count badge — only shows when count > 0 and not visited */}
+                      {/* Live count badge */}
                       {count > 0 && !disabled && (
                         <span style={{
-                          background: '#FFB800',
-                          color: '#1B2B6B',
+                          background: '#EF4444',
+                          color: '#fff',
                           fontSize: 10,
                           fontWeight: 700,
                           minWidth: 18,
@@ -314,7 +292,7 @@ export default function Sidebar({
 
                       {disabled && (
                         <span style={{
-                          color: 'rgba(255,255,255,0.2)',
+                          color: 'rgba(15,23,42,0.2)',
                           display: 'flex',
                           alignItems: 'center',
                         }}>
@@ -333,8 +311,8 @@ export default function Sidebar({
                       width: 8,
                       height: 8,
                       borderRadius: 4,
-                      background: '#FFB800',
-                      border: '1.5px solid #1B2B6B',
+                      background: '#EF4444',
+                      border: '1.5px solid #fff',
                     }} />
                   )}
                 </button>
@@ -346,69 +324,39 @@ export default function Sidebar({
 
       {/* ── Bottom sign out ── */}
       <div style={{
-        paddingTop: 12,
-        paddingBottom: 12,
-        paddingLeft: 8,
-        paddingRight: 8,
-        borderTop: '1px solid rgba(255,255,255,0.1)',
+        padding: '10px 8px',
+        borderTop: '1px solid rgba(255,255,255,0.05)',
         flexShrink: 0,
       }}>
         {isGuest && !collapsed && (
-          <button
-            onClick={onSignOut}
-            style={{
-              width: '100%',
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              paddingTop: 8,
-              paddingBottom: 8,
-              paddingLeft: 10,
-              paddingRight: 10,
-              borderRadius: 8,
-              border: '1px solid rgba(255,184,0,0.3)',
-              background: 'rgba(255,184,0,0.1)',
-              color: '#FFB800',
-              cursor: 'pointer',
-              fontSize: 13,
-              fontWeight: 600,
-              marginBottom: 6,
-            }}
-          >
-            <span style={{ display: 'flex', alignItems: 'center' }}>
-              {Ico.login}
-            </span>
+          <button onClick={onSignOut} style={{
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '8px 10px', borderRadius: 8,
+            border: '1px solid rgba(255,184,0,0.2)',
+            background: 'rgba(255,184,0,0.08)',
+            color: '#FFB800', cursor: 'pointer', fontSize: 13, fontWeight: 600, marginBottom: 6,
+          }}>
+            <span style={{ display: 'flex', alignItems: 'center' }}>{Ico.login}</span>
             Sign In
           </button>
         )}
-
         <button
           onClick={onSignOut}
           title={collapsed ? (isGuest ? 'Exit Guest Mode' : 'Sign out') : undefined}
           style={{
-            width: '100%',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            paddingTop: 8,
-            paddingBottom: 8,
-            paddingLeft: 10,
-            paddingRight: 10,
-            borderRadius: 8,
-            border: 'none',
-            background: 'transparent',
-            color: 'rgba(255,255,255,0.5)',
-            cursor: 'pointer',
-            fontSize: 13,
+            width: '100%', display: 'flex', alignItems: 'center', gap: 10,
+            padding: '9px 10px', borderRadius: 8, border: 'none',
+            background: hoverSignOut ? 'rgba(239,68,68,0.1)' : 'transparent',
+            color: hoverSignOut ? '#ef4444' : 'rgba(255,255,255,0.35)',
+            cursor: 'pointer', fontSize: 13, fontWeight: 500,
             justifyContent: collapsed ? 'center' : 'flex-start',
+            transition: 'all 0.15s',
           }}
+          onMouseEnter={() => setHoverSignOut(true)}
+          onMouseLeave={() => setHoverSignOut(false)}
         >
-          <span style={{ display: 'flex', alignItems: 'center' }}>
-            {Ico.logout}
-          </span>
-          {!collapsed && (
-            <span>{isGuest ? 'Exit Guest Mode' : 'Sign out'}</span>
-          )}
+          <span style={{ display: 'flex', alignItems: 'center' }}>{Ico.logout}</span>
+          {!collapsed && <span>{isGuest ? 'Exit Guest Mode' : 'Sign out'}</span>}
         </button>
       </div>
     </aside>

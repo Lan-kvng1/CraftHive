@@ -2,10 +2,12 @@ import { ReactNode } from 'react'
 
 export function Avatar({
   initials,
+  src,
   size = 'sm',
   color = 'navy',
 }: {
   initials: string
+  src?: string
   size?: 'sm' | 'md' | 'lg'
   color?: 'navy' | 'gold'
 }) {
@@ -14,6 +16,19 @@ export function Avatar({
   const bg = color === 'gold' ? '#FFB800' : '#1B2B6B'
   const fg = color === 'gold' ? '#1B2B6B' : '#fff'
   const s = sizes[size]
+
+  if (src) {
+    return (
+      <img 
+        src={src} 
+        alt={initials} 
+        style={{ 
+          width: s, height: s, borderRadius: s, 
+          objectFit: 'cover', flexShrink: 0 
+        }} 
+      />
+    )
+  }
 
   return (
     <div style={{
@@ -357,7 +372,7 @@ export function EmptyState({
   title,
   message,
 }: {
-  icon: string
+  icon: ReactNode
   title: string
   message: string
 }) {
@@ -367,9 +382,20 @@ export function EmptyState({
       alignItems: 'center', justifyContent: 'center',
       padding: '80px 40px', textAlign: 'center',
     }}>
-      <div style={{ fontSize: 48, marginBottom: 16 }}>{icon}</div>
-      <p style={{ fontSize: 18, fontWeight: 700, color: '#1B2B6B', marginBottom: 8 }}>{title}</p>
-      <p style={{ fontSize: 14, color: '#6B7494', maxWidth: 300, lineHeight: 1.6 }}>{message}</p>
+      <div style={{
+        width: 64, height: 64, borderRadius: 16,
+        background: 'rgba(255,184,0,0.1)', border: '1px solid rgba(255,184,0,0.2)',
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        color: '#FFB800', marginBottom: 16, fontSize: 24,
+      }}>
+        {typeof icon === 'string' ? (
+          <span style={{ fontSize: 28 }}>{icon}</span>
+        ) : (
+          icon
+        )}
+      </div>
+      <p style={{ fontSize: 18, fontWeight: 800, color: '#0A1628', marginBottom: 8 }}>{title}</p>
+      <p style={{ fontSize: 14, color: '#64748B', maxWidth: 320, lineHeight: 1.6 }}>{message}</p>
     </div>
   )
 }

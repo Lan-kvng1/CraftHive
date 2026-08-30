@@ -8,6 +8,7 @@ import {
 import { SafeAreaView } from 'react-native-safe-area-context'
 import { StatusBar } from 'expo-status-bar'
 import { useRouter } from 'expo-router'
+import * as Linking from 'expo-linking'
 import { supabase } from '../../src/lib/supabase'
 import { useAppTheme } from '../../src/hooks/useAppTheme'
 import { ArrowLeftIcon, MailIcon } from '../../src/components/Icons'
@@ -24,7 +25,9 @@ export default function ForgotPassword() {
   const submit = async () => {
     if (!email.trim()) { Alert.alert('Required', 'Please enter your email address.'); return }
     setLoading(true)
-    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase())
+    const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
+      redirectTo: Linking.createURL('/(auth)/reset-password'),
+    })
     setLoading(false)
     if (error) { Alert.alert('Error', error.message); return }
     setSent(true)
