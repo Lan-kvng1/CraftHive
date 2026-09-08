@@ -1,5 +1,5 @@
 <div align="center">
-  <h1>🐝 CraftHive</h1>
+  <h1>CraftHive</h1>
   <p><strong>A Next-Generation Mobile Artisan Service Marketplace for Ghana</strong></p>
 
   [![React Native](https://img.shields.io/badge/React_Native-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)](https://reactnative.dev/)
